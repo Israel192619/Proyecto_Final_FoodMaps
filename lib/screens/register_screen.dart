@@ -13,6 +13,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _celularController = TextEditingController();
+  final TextEditingController _correoController = TextEditingController(); // Nuevo controlador
   final TextEditingController _pass1Controller = TextEditingController();
   final TextEditingController _pass2Controller = TextEditingController();
 
@@ -32,6 +33,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           body: jsonEncode({
             'username': _usernameController.text.trim(),
             'celular': _celularController.text.trim(),
+            'correo': _correoController.text.trim(), // Agregado
             'password': _pass1Controller.text.trim(),
             'rol': _selectedRol,
           }),
@@ -129,6 +131,36 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Ingrese un número de celular';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Correo electrónico
+                  TextFormField(
+                    controller: _correoController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.email, color: Colors.black),
+                      hintText: "Correo electrónico",
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 18, color: Colors.black),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingrese su correo electrónico';
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        return 'Ingrese un correo válido';
+                      }
+                      if (value.length < 5) {
+                        return 'El correo debe tener al menos 5 caracteres';
                       }
                       return null;
                     },
