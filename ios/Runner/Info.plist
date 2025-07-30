@@ -44,6 +44,9 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>Necesitamos acceder a tu ubicación para mostrar el mapa</string>
+    <key>io.flutter.embedded_views_preview</key>
 	<true/>
 </dict>
 </plist>

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart'; // Importa la pantalla de login
 import 'screens/register_screen.dart'; // Importa la pantalla de registro
+import 'screens/maps_cli_activity.dart'; // Importa la actividad principal con el mapa
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Asegúrate de que los widgets estén inicializados
@@ -17,7 +18,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const LoginScreen(), // Define LoginScreen como la pantalla principal
+      home: const MapsCliActivity(), // Define LoginScreen como la pantalla principal
       routes: {
         // ...otras rutas...
         '/register': (context) => const RegistroScreen(), // Ruta para la pantalla de registro

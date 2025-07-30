@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.cases"
-    compileSdk = 34  // Usa la versión que necesites
+    compileSdk = 35  // Usa la versión que necesites
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -21,7 +21,7 @@ android {
     defaultConfig {
         applicationId = "com.example.cases"
         minSdk = 21  // Usa la versión que necesites
-        targetSdk = 34  // Usa la versión que necesites
+        targetSdk = 35  // Usa la versión que necesites
         versionCode = 1
         versionName = "1.0"
     }
