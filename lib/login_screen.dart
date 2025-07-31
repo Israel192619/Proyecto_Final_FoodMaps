@@ -2,6 +2,8 @@ import 'package:cases/constants/assets.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:cases/config/safe_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,8 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
       String username = _usernameController.text;
       String password = _passwordController.text;
 
-      // Ruta de la API para login
-      const String apiUrl = 'https://tudominio.com/api/login';
+      // Ruta del login
+      const String apiUrl = 'https://192.168.1.3/api/login';
 
       try {
         final response = await http.post(
@@ -34,12 +36,20 @@ class _LoginScreenState extends State<LoginScreen> {
           }),
         );
 
-        if (response.statusCode == 200|| 1 == 1) {
-          // Login exitoso, puedes navegar o guardar token
+        if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          print('Login exitoso: $data');
-          // ...navegación o manejo de sesión...
-        } else {
+          final token = data['token'];
+
+          // Guardar token
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', token);
+
+          print('Token guardado: $token');
+
+          // navegar a la pantalla de inicio
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+        else {
           // Error en login
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Usuario o contraseña incorrectos')),
@@ -139,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                       SizedBox(height: screenHeight * 0.03),
-                      ElevatedButton(
+                      SafeButton(
                         onPressed: _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
