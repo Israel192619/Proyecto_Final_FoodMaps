@@ -17,12 +17,14 @@ class AuthController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
     public function register() {
+        //dd(request()->all());
         $validator = Validator::make(request()->all(), [
             //'name' => 'required',
             'email' => 'required|email|unique:users',
             'username' => 'required|unique:users',
             'celular' => 'required|digits_between:8,15',
             'password' => 'required|confirmed|min:8',
+            'role_id' => 'required',
         ]);
 
         if($validator->fails()){
@@ -35,6 +37,7 @@ class AuthController extends Controller
         $user->username = request()->username;
         $user->celular = request()->celular;
         $user->password = bcrypt(request()->password);
+        $user->role_id = request()->role_id;
         $user->save();
 
         return response()->json($user, 201);

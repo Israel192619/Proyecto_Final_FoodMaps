@@ -15,11 +15,12 @@ class IsOwnerMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        //dd(auth()->user());
         $user = auth()->user();
         if (!$user) {
             return response()->json(['message' => 'No autenticado.'], 401);
         }
-        if ($user->rol !== 'dueño') {
+        if ($user->role_id !== 1) {
             return response()->json(['message' => 'Solo los dueños pueden acceder.'], 403);
         }
         return $next($request);

@@ -11,7 +11,7 @@ class RestauranteController extends Controller
      */
     public function index()
     {
-        return response()->json(['message' => 'List of restaurants']);
+        return response()->json(['message' => 'Lista de restaurantes']);
     }
 
     /**
