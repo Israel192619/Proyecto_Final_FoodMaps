@@ -13,3 +13,18 @@ Route::group([
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:api')->name('refresh');
     Route::post('/me', [AuthController::class, 'me'])->middleware('auth:api')->name('me');
 });
+
+Route::group([
+    'middleware' => 'api',
+    'prefix' => 'auth'
+], function ($router) {
+    Route::apiResource('restaurantes', 'RestauranteController')
+        ->middleware('auth:api')
+        ->names([
+            'index' => 'restaurantes.index',
+            'store' => 'restaurantes.store',
+            'show' => 'restaurantes.show',
+            'update' => 'restaurantes.update',
+            'destroy' => 'restaurantes.destroy'
+        ]);
+});
