@@ -31,8 +31,14 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^0.13.6
+  geolocator: ^10.0.0
+  permission_handler: ^11.3.0
+  flutter_svg: ^2.0.0
   shared_preferences: ^2.2.2
   google_maps_flutter: ^2.6.0
+  google_map_custom_windows: ^1.0.1
+  cached_network_image: ^3.2.3
+  url_launcher: ^6.2.6
   flutter_localizations:
     sdk: flutter
 
@@ -64,7 +70,7 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/fonts/
-
+    - assets/map_styles/map_style_no_labels.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

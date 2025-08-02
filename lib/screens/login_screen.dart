@@ -18,13 +18,70 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool obscureText = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _checkSavedCredentials();
+  }
+
+  Future<void> _checkSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUsername = prefs.getString('username');
+    final savedPassword = prefs.getString('password');
+    final keepSession = prefs.getBool('mantenersesion') ?? false;
+
+    // Solo hacer auto-login si el usuario eligió mantener la sesión
+    if (keepSession && savedUsername != null && savedPassword != null) {
+      _attemptAutoLogin(savedUsername, savedPassword);
+    }
+  }
+
+  Future<void> _attemptAutoLogin(String username, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['access_token'];
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', token);
+
+        // Redirigir al home y limpiar el stack de navegación
+        Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/home',
+                (route) => false
+        );
+      } else {
+        // Si el auto-login falla, limpiar las credenciales
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('username');
+        await prefs.remove('password');
+      }
+    } catch (e) {
+      print('Auto-login fallido: $e');
+      // Limpiar credenciales si hay error
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('username');
+      await prefs.remove('password');
+    }
+  }
+
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       String username = _usernameController.text;
       String password = _passwordController.text;
+      int rol = 1; // Rol de cliente
 
-      // Ruta del login
-      const String apiUrl = 'https://192.168.1.3/api/login';
+      const String apiUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login';
 
       try {
         final response = await http.post(
@@ -33,36 +90,53 @@ class _LoginScreenState extends State<LoginScreen> {
           body: jsonEncode({
             'username': username,
             'password': password,
+            'user_role': rol,
           }),
         );
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          final token = data['token'];
+          final token = data['access_token'];
 
-          // Guardar token
           final prefs = await SharedPreferences.getInstance();
+          // Guardar todos los datos necesarios
           await prefs.setString('auth_token', token);
+          await prefs.setString('username', username);
+          await prefs.setString('password', password);
+          await prefs.setBool('mantenersesion', true); // Asegúrate de guardar esto
+          await prefs.setInt('userRole', rol);
 
-          print('Token guardado: $token');
+          // Verifica que los datos se hayan guardado
+          print('Datos guardados en SharedPreferences:');
+          print('Token: ${prefs.getString('auth_token')}');
+          print('Username: ${prefs.getString('username')}');
+          print('Mantener sesión: ${prefs.getBool('mantenersesion')}');
 
-          // navegar a la pantalla de inicio
           Navigator.pushReplacementNamed(context, '/home');
-        }
-        else {
-          // Error en login
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Usuario o contraseña incorrectos')),
           );
         }
-
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión')),
+          SnackBar(content: Text('Error de conexión: $e')),
         );
       }
     }
   }
+
+  // Metodo para imprimir todos los valores en SharedPreferences
+  Future<void> _printAllPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    print('Todos los valores en SharedPreferences:');
+    prefs.getKeys().forEach((key) {
+      print('$key: ${prefs.get(key)}');
+    });
+  }
+
+// Llama a este metodo después de guardar los datos en el login
+// y al iniciar la aplicación en el AuthWrapper
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: screenHeight * 0.01),
                       const Text(
-                        'INICIAR SESION',
+                        'INICIAR SESIÓN',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -164,14 +238,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.03),
-                      const Text("No tienes una cuenta aun?"),
+                      const Text("¿No tienes una cuenta aún?"),
                       TextButton(
                         onPressed: () {
-                          // Navegar a la pantalla de registro
                           Navigator.pushNamed(context, '/register');
                         },
                         child: const Text(
-                          "Click aqui para crear una",
+                          "Click aquí para crear una",
                           style: TextStyle(color: Colors.blue),
                         ),
                       ),

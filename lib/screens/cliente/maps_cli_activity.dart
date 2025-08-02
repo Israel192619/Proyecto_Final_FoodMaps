@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-
 import 'fragments/maps_page.dart';
 import 'fragments/settings_page.dart';
 
@@ -16,7 +15,7 @@ class _MapsCliActivityState extends State<MapsCliActivity> {
   DateTime? _lastPressed;
 
   final List<Widget> _pages = [
-    const MapsPage(),
+    MapsPage(),
     const SettingsPage(),
   ];
 

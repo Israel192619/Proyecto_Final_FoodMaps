@@ -9,6 +9,7 @@ class SettingsPage extends StatelessWidget {
     final token = prefs.getString('auth_token');
     return token != null && token.isNotEmpty;
   }
+  //switch para mantener sesión
 
   Future<void> _confirmLogout(BuildContext context) async {
     final confirm = await showDialog<bool>(
@@ -31,13 +32,23 @@ class SettingsPage extends StatelessWidget {
 
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
+      // Elimina TODOS los datos relacionados con la sesión
       await prefs.remove('auth_token');
+      await prefs.remove('username');
+      await prefs.remove('password');
+      await prefs.remove('mantenersesion');
+      await prefs.remove('userRole');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sesión cerrada correctamente')),
       );
 
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      // Redirige al login y limpia completamente el stack de navegación
+      Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+              (route) => false
+      );
     }
   }
 
@@ -96,6 +107,7 @@ class SettingsPage extends StatelessWidget {
         } else {
           // No hay token → redirigir al login
           Future.microtask(() {
+            print("Respuesta del servidor: No hay token de autenticación redirijiendo a login");
             Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
           });
           return const Scaffold(
