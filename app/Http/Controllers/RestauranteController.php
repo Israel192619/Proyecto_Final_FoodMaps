@@ -13,7 +13,11 @@ class RestauranteController extends Controller
      */
     public function index()
     {
-        $restaurantes = Restaurante::all();
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        $restaurantes = Restaurante::where('user_id', $user->id)->get();
         $data = [
             'mensaje' => 'Lista de restaurantes',
             'restaurantes' => $restaurantes,
