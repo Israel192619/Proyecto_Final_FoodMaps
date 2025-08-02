@@ -67,6 +67,7 @@ class RestauranteController extends Controller
      */
     public function show(string $id)
     {
+        //$user = auth()->user();
         $restaurante = Restaurante::find($id);
         if (!$restaurante) {
             $data = [
@@ -75,6 +76,9 @@ class RestauranteController extends Controller
             ];
             return response()->json($data,404);
         }
+        /* if ($restaurante->user_id !== $user->id) {
+            return response()->json(['error' => 'No autorizado. Este restaurante no te pertenece.'], 403);
+        } */
         $data = [
             'mensaje' => 'Detalles del restaurante',
             'restaurante' => $restaurante,
@@ -87,14 +91,18 @@ class RestauranteController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        //$user = auth()->user();
         $restaurante = Restaurante::find($id);
         if(!$restaurante){
             $data = [
-                "message" => "Estudiante no encontrado",
+                "message" => "Restaurante no encontrado",
                 "status" => 404
             ];
             return response()->json($data,404);
         }
+        /* if ($restaurante->user_id !== $user->id) {
+            return response()->json(['error' => 'No autorizado. Este restaurante no te pertenece.'], 403);
+        } */
         $validate = Validator::make($request->all(), [
             'nombre_restaurante' => 'required|string|max:255',
             'ubicacion' => 'required|string|max:255',
@@ -127,6 +135,7 @@ class RestauranteController extends Controller
      */
     public function destroy(string $id)
     {
+        //$user = auth()->user();
         $restaurante = Restaurante::find($id);
         if(!$restaurante) {
             $data = [
@@ -134,6 +143,9 @@ class RestauranteController extends Controller
             ];
             return response()->json($data, 404);
         }
+        /* if ($restaurante->user_id !== $user->id) {
+            return response()->json(['error' => 'No autorizado. Este restaurante no te pertenece.'], 403);
+        } */
 
         $restaurante->delete();
 
