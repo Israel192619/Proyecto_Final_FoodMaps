@@ -135,7 +135,7 @@ class RestauranteController extends Controller
      */
     public function destroy(string $id)
     {
-        //$user = auth()->user();
+        $user = auth()->user();
         $restaurante = Restaurante::find($id);
         if(!$restaurante) {
             $data = [
@@ -143,9 +143,9 @@ class RestauranteController extends Controller
             ];
             return response()->json($data, 404);
         }
-        /* if ($restaurante->user_id !== $user->id) {
+        if ($restaurante->user_id !== $user->id) {
             return response()->json(['error' => 'No autorizado. Este restaurante no te pertenece.'], 403);
-        } */
+        }
 
         $restaurante->delete();
 
