@@ -14,11 +14,12 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         DB::table('users')->insert([
+            //dueños
             [
                 'email' => 'maria.lopez@gmail.com',
                 'username' => 'MariaLopez',
                 'celular' => '72015846',
-                'role_id' => 1,
+                'role_id' => 2,
                 'password' => bcrypt('Maria2025*'),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -36,7 +37,7 @@ class UsersTableSeeder extends Seeder
                 'email' => 'andrea.garcia@yahoo.com',
                 'username' => 'AndreaG',
                 'celular' => '73124589',
-                'role_id' => 1,
+                'role_id' => 2,
                 'password' => bcrypt('Andrea2025*'),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -54,16 +55,17 @@ class UsersTableSeeder extends Seeder
                 'email' => 'laura.mamani@gmail.com',
                 'username' => 'LauraM',
                 'celular' => '72233456',
-                'role_id' => 1,
+                'role_id' => 2,
                 'password' => bcrypt('Laura2025*'),
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            //clientes
             [
                 'email' => 'fernando.perez@hotmail.com',
                 'username' => 'FerPerez',
                 'celular' => '79014567',
-                'role_id' => 2,
+                'role_id' => 1,
                 'password' => bcrypt('Fernando2025*'),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -81,7 +83,7 @@ class UsersTableSeeder extends Seeder
                 'email' => 'diego.alarcon@gmail.com',
                 'username' => 'DiegoA',
                 'celular' => '77891245',
-                'role_id' => 2,
+                'role_id' => 1,
                 'password' => bcrypt('Diego2025*'),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -99,7 +101,7 @@ class UsersTableSeeder extends Seeder
                 'email' => 'ricardo.rios@gmail.com',
                 'username' => 'RicardoR',
                 'celular' => '77654321',
-                'role_id' => 2,
+                'role_id' => 1,
                 'password' => bcrypt('Ricardo2025*'),
                 'created_at' => now(),
                 'updated_at' => now()

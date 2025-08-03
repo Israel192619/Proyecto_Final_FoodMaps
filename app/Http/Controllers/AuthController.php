@@ -57,7 +57,7 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        return $this->respondWithToken($token,);
+        return $this->respondWithToken($token);
     }
 
     /**
@@ -101,11 +101,53 @@ class AuthController extends Controller
      */
     protected function respondWithToken($token)
     {
+        $user = auth()->user();
+        if($user->role_id === 2){
+            $restaurante = $this->tieneRestaurantes($user);
+            if($restaurante->isEmpty()){
+                return response()->json([
+                    'access_token' => $token,
+                    'token_type' => 'bearer',
+                    'expires_in' => auth()->factory()->getTTL() * 60,
+                    'user' => auth()->user()
+                ], 201);
+            }else{
+                return response()->json([
+                    'access_token' => $token,
+                    'token_type' => 'bearer',
+                    'expires_in' => auth()->factory()->getTTL() * 60,
+                    'user' => auth()->user(),
+                    'restaurante' => $restaurante
+                ],202);
+            }
+
+        }elseif($user->role_id === 1){
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => auth()->factory()->getTTL() * 60,
+                'user' => auth()->user()
+            ],200);
+        }
         return response()->json([
+            'error' => 'Rol no reconocido',
+            'user' => $user
+        ], 400);
+        /* return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
             'expires_in' => auth()->factory()->getTTL() * 60,
             'user' => auth()->user(),
-        ]);
+            'restaurante' => $restaurante
+        ]); */
+    }
+
+    protected function tieneRestaurantes($user){
+        $restaurante = $user->restaurantes()->get();
+        if(!$restaurante){
+            return null;
+        }else{
+            return $restaurante;
+        }
     }
 }

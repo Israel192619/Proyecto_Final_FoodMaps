@@ -23,6 +23,8 @@ class RestauranteTableSeeder extends Seeder
                 'tematica' => 'Italiana',
                 'contador_vistas' => 0,
                 'user_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Sabor Oriental',
@@ -32,7 +34,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'China',
                 'contador_vistas' => 0,
-                'user_id' => 2,
+                'user_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Tierra Gaucha',
@@ -43,6 +47,8 @@ class RestauranteTableSeeder extends Seeder
                 'tematica' => 'Parrillada',
                 'contador_vistas' => 0,
                 'user_id' => 3,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'El Mexicano Loco',
@@ -52,7 +58,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Mexicana',
                 'contador_vistas' => 0,
-                'user_id' => 4,
+                'user_id' => 3,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Sabores del Mar',
@@ -62,7 +70,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Mariscos',
                 'contador_vistas' => 0,
-                'user_id' => 5,
+                'user_id' => 3,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Veggie Life',
@@ -72,7 +82,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Vegetariana',
                 'contador_vistas' => 0,
-                'user_id' => 6,
+                'user_id' => 4,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Burger Planet',
@@ -82,7 +94,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Hamburguesas',
                 'contador_vistas' => 0,
-                'user_id' => 7,
+                'user_id' => 4,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Dulce Encanto',
@@ -92,7 +106,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Postres',
                 'contador_vistas' => 0,
-                'user_id' => 8,
+                'user_id' => 4,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Pizzeria Napoli',
@@ -102,7 +118,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Italiana',
                 'contador_vistas' => 0,
-                'user_id' => 9,
+                'user_id' => 5,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
             [
                 'nombre_restaurante'=> 'Café Andino',
@@ -112,7 +130,9 @@ class RestauranteTableSeeder extends Seeder
                 'estado' => 1,
                 'tematica' => 'Boliviana',
                 'contador_vistas' => 0,
-                'user_id' => 10,
+                'user_id' => 5,
+                'created_at' => now(),
+                'updated_at' => now()
             ],
         ]);
     }

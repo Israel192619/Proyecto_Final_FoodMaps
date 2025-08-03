@@ -14,8 +14,8 @@ class RolesTableSeeder extends Seeder
     public function run(): void
     {
         DB::table('roles')->insert([
-            ['nombre_rol' => 'Dueño', 'created_at' => now(), 'updated_at' => now()],
             ['nombre_rol' => 'Cliente', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre_rol' => 'Dueño', 'created_at' => now(), 'updated_at' => now()],
         ]);
     }
 }
