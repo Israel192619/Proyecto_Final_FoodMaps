@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dueño/new_restaurante.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 import 'cliente/maps_cli_activity.dart';
 import 'dueño/maps_due_activity.dart';
 import 'SplashScreen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,8 +28,9 @@ class MyApp extends StatelessWidget {
         '/': (context) => const AuthWrapper(),
         '/register': (context) => const RegistroScreen(),
         '/login': (context) => const LoginScreen(),
-        '/home': (context) => const MapsCliActivity(),
-        '/home_dueno': (context) => const MapsDueActivity(restauranteId: 0,),
+        '/mapsCliActivity': (context) => const MapsCliActivity(),
+        '/mapsDueActivity': (context) => const MapsDueActivity(restauranteId: 0),
+        '/new_restaurante': (context) => const NewRestauranteScreen(),
       },
     );
   }
@@ -38,48 +42,101 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _checkAuthStatus(),
+      future: _checkAuthAndRestaurantStatus(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
         }
 
-        final isAuthenticated = snapshot.data?['authenticated'] ?? false;
-        final keepSession = snapshot.data?['keepSession'] ?? false;
-        final hasCredentials = snapshot.data?['hasCredentials'] ?? false;
+        final authData = snapshot.data ?? {};
+        final isAuthenticated = authData['authenticated'] ?? false;
+        final keepSession = authData['keepSession'] ?? false;
+        final hasCredentials = authData['hasCredentials'] ?? false;
+        final hasRestaurant = authData['hasRestaurant'] ?? false;
+        final userRole = authData['userRole'] ?? 1;
+        final forcedLogout = authData['forcedLogout'] ?? false;
 
-        if (isAuthenticated && (keepSession || hasCredentials)) {
-          return const MapsCliActivity();
-        } else {
+        // Si fue un logout forzado, ir al login
+        if (forcedLogout) {
           return const LoginScreen();
+        }
+
+        if (!isAuthenticated || (!keepSession && !hasCredentials)) {
+          return const LoginScreen();
+        }
+
+        // Lógica de redirección basada en rol y estado del restaurante
+        if (userRole == 2) { // Dueño
+          return hasRestaurant
+              ? const MapsDueActivity(restauranteId: 0)
+              : const NewRestauranteScreen();
+        } else { // Cliente
+          return const MapsCliActivity();
         }
       },
     );
   }
 
-  Future<Map<String, dynamic>> _checkAuthStatus() async {
+  Future<Map<String, dynamic>> _checkAuthAndRestaurantStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     final keepSession = prefs.getBool('mantenersesion') ?? false;
     final username = prefs.getString('username');
     final password = prefs.getString('password');
+    final userRole = prefs.getInt('userRole') ?? 1;
+    final forcedLogout = prefs.getBool('forcedLogout') ?? false;
 
-    print('Datos en SharedPreferences al iniciar:');
-    print('Token: $token');
-    print('Mantener sesión: $keepSession');
-    print('Username: $username');
-    print('Password: $password');
+    // Resetear el estado de forcedLogout para futuros inicios
+    if (forcedLogout) {
+      await prefs.setBool('forcedLogout', false);
+    }
+
+    // Verificar autenticación básica
+    if (token == null || token.isEmpty) {
+      return {
+        'authenticated': false,
+        'keepSession': keepSession,
+        'hasCredentials': username != null && password != null,
+        'userRole': userRole,
+        'hasRestaurant': false,
+        'forcedLogout': forcedLogout,
+      };
+    }
+
+    // Para dueños, verificar si tienen restaurante
+    if (userRole == 2) {
+      try {
+        final response = await http.get(
+          Uri.parse('https://tuapi.com/api/restaurantes/verificar'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return {
+            'authenticated': true,
+            'keepSession': keepSession,
+            'hasCredentials': username != null && password != null,
+            'userRole': userRole,
+            'hasRestaurant': data['tieneRestaurante'] ?? false,
+            'forcedLogout': forcedLogout,
+          };
+        }
+      } catch (e) {
+        print('Error al verificar restaurante: $e');
+      }
+    }
 
     return {
-      'authenticated': token != null && token.isNotEmpty,
+      'authenticated': token.isNotEmpty,
       'keepSession': keepSession,
       'hasCredentials': username != null && password != null,
+      'userRole': userRole,
+      'hasRestaurant': userRole == 1,
+      'forcedLogout': forcedLogout,
     };
   }
 }
-
-  Future<bool> _checkAuthStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    return token != null && token.isNotEmpty;
-  }

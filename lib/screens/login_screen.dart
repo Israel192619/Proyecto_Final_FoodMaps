@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cases/constants/assets.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool obscureText = true;
+  bool _isLoading = false; // <-- Añadido aquí
 
   @override
   void initState() {
@@ -76,78 +79,93 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      String username = _usernameController.text;
-      String password = _passwordController.text;
+    if (!_formKey.currentState!.validate()) return;
 
-      const String apiUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login';
+    String username = _usernameController.text;
+    String password = _passwordController.text;
 
-      try {
-        final response = await http.post(
-          Uri.parse(apiUrl),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'username': username,
-            'password': password,
-          }),
-        );
+    const String apiUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login';
 
-        final prefs = await SharedPreferences.getInstance();
+    try {
+      setState(() => _isLoading = true);
 
-        if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
-          final data = jsonDecode(response.body);
-          final token = data['access_token'];
-          final user = data['user'];
-          final roleId = user['role_id'];
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      ).timeout(const Duration(seconds: 30));
 
-          // Guardar credenciales comunes
-          await prefs.setString('auth_token', token);
-          await prefs.setString('username', username);
-          await prefs.setString('password', password);
-          await prefs.setBool('mantenersesion', true);
-          await prefs.setInt('userRole', roleId);
+      final prefs = await SharedPreferences.getInstance();
 
-          if (response.statusCode == 200) {
+      // Resetear estado de logout forzado al intentar login
+      await prefs.setBool('forcedLogout', false);
+
+      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
+        final data = jsonDecode(response.body);
+        final token = data['access_token'];
+        final user = data['user'];
+        final roleId = user['role_id'];
+
+        // Guardar credenciales
+        await prefs.setString('auth_token', token);
+        await prefs.setString('username', username);
+        await prefs.setString('password', password);
+        await prefs.setBool('mantenersesion', true);
+        await prefs.setInt('userRole', roleId);
+
+        // Manejar diferentes respuestas del servidor
+        switch (response.statusCode) {
+          case 200: // Cliente
+            await prefs.setBool('hasRestaurant', true); // Clientes siempre tienen "restaurante"
             Navigator.pushReplacementNamed(context, '/home');
-          }
+            break;
 
-          else if (response.statusCode == 201) {
+          case 201: // Dueño sin restaurante
+            await prefs.setBool('hasRestaurant', false);
             Navigator.pushReplacementNamed(context, '/new_restaurante');
-          }
+            break;
 
-          else if (response.statusCode == 202) {
-            final restaurante = data['restaurante']; // Asume que se envía esto desde el backend
-
+          case 202: // Dueño con restaurante
+            final restaurante = data['restaurante'];
+            await prefs.setBool('hasRestaurant', true);
+            await prefs.setString('restaurante', jsonEncode(restaurante));
             Navigator.pushReplacementNamed(
               context,
               '/dueno_home',
               arguments: restaurante,
             );
-          }
+            break;
 
-          else {
+          default:
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Rol no reconocido o respuesta inesperada')),
+              const SnackBar(content: Text('Respuesta inesperada del servidor')),
             );
-          }
         }
-
-        else if (response.statusCode == 401) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Credenciales inválidas')),
-          );
-        }
-
-        else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error inesperado: ${response.statusCode}')),
-          );
-        }
-
-      } catch (e) {
+      }
+      else if (response.statusCode == 401) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión: $e')),
+          const SnackBar(content: Text('Credenciales inválidas')),
         );
+      }
+      else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error del servidor: ${response.statusCode}')),
+        );
+      }
+    } on TimeoutException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tiempo de espera agotado')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
