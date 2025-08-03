@@ -1,82 +1,93 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class SettingsDuenoFragment extends StatelessWidget {
-  const SettingsDuenoFragment({super.key});
+class SettingsDuenoPage extends StatelessWidget {
+  final int restauranteId;
 
-  Future<void> _confirmLogout(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
+  const SettingsDuenoPage({Key? key, required this.restauranteId}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Configuración del Restaurante',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Sí'),
+          SizedBox(height: 20),
+          _buildSettingItem(
+            context,
+            icon: Icons.edit,
+            title: 'Editar información',
+            onTap: () => _editarInformacion(),
+          ),
+          _buildSettingItem(
+            context,
+            icon: Icons.photo,
+            title: 'Cambiar imagen',
+            onTap: () => _cambiarImagen(),
+          ),
+          _buildSettingItem(
+            context,
+            icon: Icons.location_on,
+            title: 'Actualizar ubicación',
+            onTap: () => _actualizarUbicacion(),
+          ),
+          _buildSettingItem(
+            context,
+            icon: Icons.security,
+            title: 'Seguridad',
+            onTap: () => _mostrarSeguridad(),
+          ),
+          SizedBox(height: 40),
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () => _cerrarSesion(context),
+              child: Text('Cerrar sesión'),
+            ),
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('auth_token');
-      await prefs.remove('username');
-      await prefs.remove('password');
-      await prefs.remove('mantenersesion');
-      await prefs.remove('userRole');
-      await prefs.remove('restaurante_id');
-
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/login',
-            (route) => false,
-      );
-    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                // Acción para agregar negocio
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[900],
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text(
-                'Agregar mi negocio',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _confirmLogout(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text(
-                'Cerrar Sesión',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _buildSettingItem(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required VoidCallback onTap,
+      }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: Icon(Icons.chevron_right),
+      onTap: onTap,
     );
+  }
+
+  void _editarInformacion() {
+    // Implementar lógica de edición
+  }
+
+  void _cambiarImagen() {
+    // Implementar lógica para cambiar imagen
+  }
+
+  void _actualizarUbicacion() {
+    // Implementar lógica para actualizar ubicación
+  }
+
+  void _mostrarSeguridad() {
+    // Implementar lógica de seguridad
+  }
+
+  void _cerrarSesion(BuildContext context) {
+    // Implementar lógica de cierre de sesión
+    Navigator.of(context).pop();
   }
 }

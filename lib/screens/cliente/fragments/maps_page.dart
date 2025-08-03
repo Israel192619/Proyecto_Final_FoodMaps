@@ -8,9 +8,8 @@ import 'package:google_map_custom_windows/google_map_custom_windows.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/services.dart' show rootBundle;
-
 import 'package:http/http.dart' as http;
-
+import 'package:cases/constants/restaurant_info_window.dart';
 import 'MenuRestPage.dart';
 
 class MapsPage extends StatefulWidget {
@@ -20,7 +19,7 @@ class MapsPage extends StatefulWidget {
 
 class _MapsPageState extends State<MapsPage> {
   GoogleMapController? _mapController;
-  final customController = GoogleMapCustomWindowController();
+  final GoogleMapCustomWindowController _customController = GoogleMapCustomWindowController();
   final Set<Marker> _markers = {};
   List<LatLng> infoPositions = [];
   List<Widget> infoWidgets = [];
@@ -29,6 +28,7 @@ class _MapsPageState extends State<MapsPage> {
 
   String? _mapStyle;
   Timer? _webStyleTimer;
+  bool _isWebStyleApplied = false;
 
   @override
   void initState() {
@@ -37,8 +37,6 @@ class _MapsPageState extends State<MapsPage> {
     _loadMapStyle();
   }
 
-  bool _isWebStyleApplied = false;
-
   Future<void> _loadMapStyle() async {
     try {
       if (kIsWeb) {
@@ -46,9 +44,7 @@ class _MapsPageState extends State<MapsPage> {
         if (response.statusCode == 200) {
           _mapStyle = response.body;
           print("✅ Estilo cargado desde web correctamente");
-          print(_mapStyle); // <- esto es clave
-        }
-        else {
+        } else {
           print("Error cargando estilo desde web: ${response.statusCode}");
         }
       } else {
@@ -66,23 +62,38 @@ class _MapsPageState extends State<MapsPage> {
   void _applyWebMapStyle() {
     if (_mapController == null || _mapStyle == null || _isWebStyleApplied) return;
 
-    // Intenta aplicar el estilo inmediatamente
     _mapController!.setMapStyle(_mapStyle).then((_) {
       _isWebStyleApplied = true;
     }).catchError((_) {
-      // Si falla, reintenta después de un delay
       Future.delayed(Duration(milliseconds: 500), () {
         _applyWebMapStyle();
       });
     });
   }
 
-  // Verifica permisos de ubicación y obtiene la posición actual
   Future<void> _checkPermissionAndFetch() async {
-    if (await Permission.location.request().isGranted) {
-      Position pos = await Geolocator.getCurrentPosition();
-      _animateTo(pos.latitude, pos.longitude, 17);
+    try {
+      Position? position = await Geolocator.getLastKnownPosition();
+
+      if (position == null) {
+        final status = await Permission.location.status;
+        if (status.isGranted && await Geolocator.isLocationServiceEnabled()) {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.low,
+          );
+        }
+      }
+
+      if (position != null) {
+        _animateTo(position.latitude, position.longitude, 17);
+      } else {
+        _animateTo(_defaultCenter.latitude, _defaultCenter.longitude, 15);
+      }
+    } catch (e) {
+      print('Error de ubicación: $e');
+      _animateTo(_defaultCenter.latitude, _defaultCenter.longitude, 15);
     }
+
     _fetchLocations();
   }
 
@@ -93,7 +104,7 @@ class _MapsPageState extends State<MapsPage> {
         GoogleMap(
           onMapCreated: (controller) async {
             _mapController = controller;
-            customController.googleMapController = controller;
+            _customController.googleMapController = controller;
 
             if (_mapStyle != null) {
               if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
@@ -106,15 +117,15 @@ class _MapsPageState extends State<MapsPage> {
           initialCameraPosition: CameraPosition(target: _defaultCenter, zoom: 15),
           markers: _markers,
           myLocationEnabled: true,
-          onTap: (_) => customController.hideInfoWindow!(),
-          onCameraMove: (_) => customController.onCameraMove!(),
+          onTap: (_) => _customController.hideInfoWindow!(),
+          onCameraMove: (_) => _customController.onCameraMove!(),
         ),
         CustomMapInfoWindow(
-          controller: customController,
-          offset: Offset(0, 50),
-          height: 150,
-          width: 200,
-        ),
+          controller: _customController,
+          offset: Offset(0, 30),
+          height: 170,
+          width: 180,
+        )
       ],
     );
   }
@@ -127,7 +138,7 @@ class _MapsPageState extends State<MapsPage> {
         'longitud': -66.15,
         'nom_rest': 'Restaurante de Prueba',
         'estado': 1,
-        'imagen': 'https://via.placeholder.com/150',
+        'imagen': 'https://i.etsystatic.com/59767526/r/il/bf8743/6912133860/il_fullxfull.6912133860_bbme.jpg',
         'celular': '76543210',
       },
     ];
@@ -135,9 +146,7 @@ class _MapsPageState extends State<MapsPage> {
     for (var obj in data) {
       final lat = obj['latitud'] as double;
       final lng = obj['longitud'] as double;
-      final title = obj['nom_rest'] as String;
       final estado = obj['estado'] as int;
-      final imageUrl = obj['imagen'] as String;
 
       final markerId = MarkerId(obj['restaurante_id'].toString());
       final icon = BitmapDescriptor.defaultMarkerWithHue(
@@ -152,24 +161,9 @@ class _MapsPageState extends State<MapsPage> {
           icon: icon,
           onTap: () {
             infoPositions = [position];
-            infoWidgets = [
-              GestureDetector(
-                onTap: () => _openDetail(obj),
-                child: Card(
-                  child: Column(
-                    children: [
-                      Image.network(imageUrl, height: 80, fit: BoxFit.cover),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            ];
+            infoWidgets = [_buildCustomInfoWindow(obj)];
             setState(() {});
-            customController.addInfoWindow!(infoWidgets, infoPositions);
+            _customController.addInfoWindow!(infoWidgets, infoPositions);
           },
         ),
       );
@@ -177,6 +171,12 @@ class _MapsPageState extends State<MapsPage> {
     setState(() {});
   }
 
+  Widget _buildCustomInfoWindow(Map<String, dynamic> restaurantData) {
+    return RestaurantInfoWindow(
+      restaurantData: restaurantData,
+      onMenuPressed: () => _openDetail(restaurantData),
+    );
+  }
 
   Future<void> _animateTo(double lat, double lng, double zoom) async {
     if (_mapController != null) {
@@ -200,7 +200,7 @@ class _MapsPageState extends State<MapsPage> {
 
   @override
   void dispose() {
-    customController.dispose();
+    _customController.dispose();
     _webStyleTimer?.cancel();
     super.dispose();
   }

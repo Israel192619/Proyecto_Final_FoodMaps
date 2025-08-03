@@ -79,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       String username = _usernameController.text;
       String password = _passwordController.text;
-      int rol = 1; // Rol de cliente
 
       const String apiUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login';
 
@@ -90,34 +89,61 @@ class _LoginScreenState extends State<LoginScreen> {
           body: jsonEncode({
             'username': username,
             'password': password,
-            'user_role': rol,
           }),
         );
 
-        if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+
+        if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
           final data = jsonDecode(response.body);
           final token = data['access_token'];
+          final user = data['user'];
+          final roleId = user['role_id'];
 
-          final prefs = await SharedPreferences.getInstance();
-          // Guardar todos los datos necesarios
+          // Guardar credenciales comunes
           await prefs.setString('auth_token', token);
           await prefs.setString('username', username);
           await prefs.setString('password', password);
-          await prefs.setBool('mantenersesion', true); // Asegúrate de guardar esto
-          await prefs.setInt('userRole', rol);
+          await prefs.setBool('mantenersesion', true);
+          await prefs.setInt('userRole', roleId);
 
-          // Verifica que los datos se hayan guardado
-          print('Datos guardados en SharedPreferences:');
-          print('Token: ${prefs.getString('auth_token')}');
-          print('Username: ${prefs.getString('username')}');
-          print('Mantener sesión: ${prefs.getBool('mantenersesion')}');
+          if (response.statusCode == 200) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
 
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
+          else if (response.statusCode == 201) {
+            Navigator.pushReplacementNamed(context, '/new_restaurante');
+          }
+
+          else if (response.statusCode == 202) {
+            final restaurante = data['restaurante']; // Asume que se envía esto desde el backend
+
+            Navigator.pushReplacementNamed(
+              context,
+              '/dueno_home',
+              arguments: restaurante,
+            );
+          }
+
+          else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Rol no reconocido o respuesta inesperada')),
+            );
+          }
+        }
+
+        else if (response.statusCode == 401) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Usuario o contraseña incorrectos')),
+            const SnackBar(content: Text('Credenciales inválidas')),
           );
         }
+
+        else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error inesperado: ${response.statusCode}')),
+          );
+        }
+
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error de conexión: $e')),
@@ -126,16 +152,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Metodo para imprimir todos los valores en SharedPreferences
-  Future<void> _printAllPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    print('Todos los valores en SharedPreferences:');
-    prefs.getKeys().forEach((key) {
-      print('$key: ${prefs.get(key)}');
-    });
-  }
 
-// Llama a este metodo después de guardar los datos en el login
+
 // y al iniciar la aplicación en el AuthWrapper
 
   @override

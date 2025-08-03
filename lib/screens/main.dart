@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 import 'cliente/maps_cli_activity.dart';
+import 'dueño/maps_due_activity.dart';
 import 'SplashScreen.dart';
 
 void main() async {
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegistroScreen(),
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const MapsCliActivity(),
+        '/home_dueno': (context) => const MapsDueActivity(restauranteId: 0,),
       },
     );
   }
