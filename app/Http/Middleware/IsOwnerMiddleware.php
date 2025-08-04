@@ -20,7 +20,7 @@ class IsOwnerMiddleware
         if (!$user) {
             return response()->json(['message' => 'No autenticado.'], 401);
         }
-        if ($user->role_id !== 1) {
+        if ($user->role_id !== 2) {
             return response()->json(['message' => 'Solo los dueños pueden acceder.'], 403);
         }
         return $next($request);

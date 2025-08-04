@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -63,11 +64,11 @@ class UserController extends Controller
             return response()->json($data,404);
         }
         $validate = Validator::make($request->all(), [
-            'email' => 'required|email|unique:users,email,' . $id,
-            'username' => 'required|unique:users,username,' . $id,
-            'celular' => 'required|digits_between:8,15',
-            'password' => 'required|confirmed|min:8',
-            'role_id' => 'required',
+            'email' => 'sometimes|required|email|unique:users,email,' . $id,
+            'username' => 'sometimes|required|unique:users,username,' . $id,
+            'celular' => 'sometimes|required|digits_between:8,15',
+            'password' => 'sometimes|required|confirmed|min:8',
+            'rol' => 'sometimes|required',
         ]);
         if($validate->fails()) {
             $data = [
@@ -76,13 +77,38 @@ class UserController extends Controller
             ];
             return response()->json($data, 422);
         }
-        $user->update([
+
+        $dataActualizar = [];
+
+        if ($request->has('email')) {
+            $dataActualizar['email'] = $request->email;
+        }
+        if ($request->has('username')) {
+            $dataActualizar['username'] = $request->username;
+        }
+        if ($request->has('celular')) {
+            $dataActualizar['celular'] = $request->celular;
+        }
+        if ($request->has('password')) {
+            $dataActualizar['password'] = bcrypt($request->password);
+        }
+        if ($request->has('rol')) {
+            $role = Role::where('nombre_rol', $request->rol)->first();
+            if (!$role) {
+                return response()->json(['mensaje' => 'Rol no encontrado'], 404);
+            }
+            $dataActualizar['role_id'] = $role->id;
+        }
+
+        $user->update($dataActualizar);
+
+        /* $user->update([
             'email' => $request->email,
             'username' => $request->username,
             'celular' => $request->celular,
             'password' => bcrypt($request->password),
-            'role_id' => $request->role_id,
-        ]);
+            'role_id' => $role->id,
+        ]); */
 
         $data = [
             "message" => "Usuario editado",

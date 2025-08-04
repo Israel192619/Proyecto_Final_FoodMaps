@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\User;
 //use Validator;
 use Illuminate\Support\Facades\Validator;
@@ -24,11 +25,17 @@ class AuthController extends Controller
             'username' => 'required|unique:users',
             'celular' => 'required|digits_between:8,15',
             'password' => 'required|confirmed|min:8',
-            'role_id' => 'required',
+            'rol' => 'required',
         ]);
 
         if($validator->fails()){
             return response()->json($validator->errors()->toJson(), 400);
+        }
+
+        $role = Role::where('nombre_rol', request()->rol)->first();
+
+        if (!$role) {
+            return response()->json(['mensaje' => 'Rol no encontrado'], 404);
         }
 
         $user = new User;
@@ -37,7 +44,7 @@ class AuthController extends Controller
         $user->username = request()->username;
         $user->celular = request()->celular;
         $user->password = bcrypt(request()->password);
-        $user->role_id = request()->role_id;
+        $user->role_id = $role->id;
         $user->save();
 
         return response()->json($user, 201);

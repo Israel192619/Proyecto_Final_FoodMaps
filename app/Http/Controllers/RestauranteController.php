@@ -33,12 +33,14 @@ class RestauranteController extends Controller
         $validate = Validator::make($request->all(), [
             'nombre_restaurante' => 'required|string|max:255',
             'ubicacion' => 'required|string|max:255',
+            'latitud' => 'nullable|numeric',
+            'longitud' => 'nullable|numeric',
             'celular' => 'required|string|max:15',
             'imagen' => 'nullable',
             'estado' => 'required',
             'tematica' => 'required|string|max:255',
             'contador_vistas' => 'nullable|integer',
-            'user_id' => 'required|exists:users,id',
+            //'user_id' => 'required|exists:users,id',
         ]);
         if($validate->fails()) {
             $data = [
@@ -48,7 +50,20 @@ class RestauranteController extends Controller
             return response()->json($data, 422);
         }
 
-        $restaurante = Restaurante::create($request->all());
+        //$restaurante = Restaurante::create($request->all());
+        $restaurante = new Restaurante;
+        $restaurante->nombre_restaurante = $request->nombre_restaurante;
+        $restaurante->ubicacion = $request->ubicacion;
+        $restaurante->latitud = $request->latitud;
+        $restaurante->longitud = $request->longitud;
+        $restaurante->celular = $request->celular;
+        $restaurante->imagen = $request->imagen;
+        $restaurante->estado = $request->estado;
+        $restaurante->tematica = $request->tematica;
+        $restaurante->contador_vistas = $request->contador_vistas;
+        $restaurante->user_id = auth()->user()->id;
+        $restaurante->save();
+
         if(!$restaurante) {
             $data = [
                 "message" => "Error al crear el restaurante",
@@ -111,7 +126,7 @@ class RestauranteController extends Controller
             'estado' => 'required',
             'tematica' => 'required|string|max:255',
             'contador_vistas' => 'nullable|integer',
-            'user_id' => 'required|exists:users,id',
+            //'user_id' => 'required|exists:users,id',
         ]);
         if($validate->fails()) {
             $data = [
@@ -120,7 +135,19 @@ class RestauranteController extends Controller
             ];
             return response()->json($data, 422);
         }
-        $restaurante->update($request->all());
+        //$restaurante->update($request->all());
+        $restaurante->update([
+            'nombre_restaurante' => $request->nombre_restaurante,
+            'ubicacion' => $request->ubicacion,
+            'latitud' => $request->latitud,
+            'longitud' => $request->longitud,
+            'celular' => $request->celular,
+            'imagen' => $request->imagen,
+            'estado' => $request->estado,
+            'tematica' => $request->tematica,
+            'contador_vistas' => $request->contador_vistas ?? 0,
+            'user_id' => auth()->user()->id,
+        ]);
 
         $data = [
             "message" => "Restaurante editado correctamente",
