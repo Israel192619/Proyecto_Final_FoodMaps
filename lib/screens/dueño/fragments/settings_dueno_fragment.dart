@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/theme_provider.dart';
 
 class SettingsDuenoPage extends StatelessWidget {
   final int restauranteId;
@@ -7,11 +10,24 @@ class SettingsDuenoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Switch para tema claro/oscuro
+          SwitchListTile(
+            title: const Text("Modo oscuro"),
+            value: themeProvider.isDarkMode,
+            onChanged: (value) async {
+              themeProvider.toggleTheme(value);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('map_theme', value ? 'oscuro' : 'claro');
+            },
+          ),
+          SizedBox(height: 20),
           Text(
             'Configuración del Restaurante',
             style: Theme.of(context).textTheme.titleLarge,

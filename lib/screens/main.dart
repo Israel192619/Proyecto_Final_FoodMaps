@@ -8,10 +8,18 @@ import 'dueño/maps_due_activity.dart';
 import 'SplashScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../config/theme_provider.dart';
+import '../config/app_themes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -19,18 +27,39 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const AuthWrapper(),
-        '/register': (context) => const RegistroScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/mapsCliActivity': (context) => const MapsCliActivity(),
-        '/mapsDueActivity': (context) => const MapsDueActivity(restauranteId: 0),
-        '/new_restaurante': (context) => const NewRestauranteScreen(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        return MaterialApp(
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: themeProvider.themeMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const AuthWrapper(),
+            '/home': (context) => const AuthWrapper(), // <-- Añadido para resolver el error de ruta
+            '/register': (context) => const RegistroScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/mapsCliActivity': (context) => const MapsCliActivity(),
+            '/mapsDueActivity': (context) => const MapsDueActivity(restauranteId: 0),
+            '/new_restaurante': (context) => const NewRestauranteScreen(),
+          },
+          onGenerateRoute: (settings) {
+            if (settings.name == '/dueno_home') {
+              final restaurante = settings.arguments;
+              int restauranteId = 0;
+              if (restaurante is Map && restaurante['restaurante_id'] != null) {
+                restauranteId = restaurante['restaurante_id'] is int
+                    ? restaurante['restaurante_id']
+                    : int.tryParse(restaurante['restaurante_id'].toString()) ?? 0;
+              }
+              return MaterialPageRoute(
+                builder: (context) => MapsDueActivity(restauranteId: restauranteId),
+                settings: settings,
+              );
+            }
+            return null;
+          },
+        );
       },
     );
   }
@@ -78,6 +107,9 @@ class AuthWrapper extends StatelessWidget {
   }
 
   Future<Map<String, dynamic>> _checkAuthAndRestaurantStatus() async {
+    // Forzar que el splash se muestre al menos 1.5 segundos
+    await Future.delayed(const Duration(milliseconds: 1500));
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     final keepSession = prefs.getBool('mantenersesion') ?? false;

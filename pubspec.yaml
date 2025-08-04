@@ -44,6 +44,7 @@ dependencies:
   path_provider: ^2.1.1
   flutter_localizations:
     sdk: flutter
+  provider: ^6.0.0 # <-- Añade esta línea para el soporte de provider
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -73,6 +74,7 @@ flutter:
     - assets/images/
     - assets/fonts/
     - assets/map_styles/map_style_no_labels.json
+    - assets/map_styles/map_style_no_labels_night.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

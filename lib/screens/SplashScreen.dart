@@ -1,29 +1,14 @@
 import 'package:flutter/material.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Puedes agregar una pequeña demora para visualización
-    Future.delayed(const Duration(seconds: 2), () {
-      // La navegación se maneja en el AuthWrapper
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Puedes dejarlo vacío o eliminar este archivo si no lo usas
     return const Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
+      body: SizedBox.shrink(),
     );
   }
 }

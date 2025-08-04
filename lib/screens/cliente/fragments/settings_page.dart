@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../../../config/theme_provider.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -66,15 +68,26 @@ class SettingsPage extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data == true) {
-          // Token presente → mostrar pantalla normalmente
+          final themeProvider = Provider.of<ThemeProvider>(context);
           return Scaffold(
-            backgroundColor: Colors.black,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Switch para tema claro/oscuro
+                  SwitchListTile(
+                    title: const Text("Modo oscuro"),
+                    value: themeProvider.isDarkMode,
+                    onChanged: (value) async {
+                      themeProvider.toggleTheme(value);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('map_theme', value ? 'oscuro' : 'claro');
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

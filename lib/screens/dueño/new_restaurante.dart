@@ -167,6 +167,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
   }
 
   Future<void> _registrarRestaurante() async {
+    if (_isLoading) return; // Evita doble pulsación
     if (!_formKey.currentState!.validate()) return;
     if (_userId == null) {
       _mostrarError('No se pudo identificar al usuario');
@@ -416,7 +417,12 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
 
   Widget _buildSubmitButton() {
     return ElevatedButton(
-      onPressed: _isLoading ? null : _registrarRestaurante,
+      onPressed: _isLoading
+          ? null
+          : () async {
+              if (_isLoading) return;
+              await _registrarRestaurante();
+            },
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
         backgroundColor: Colors.blueAccent,
@@ -426,20 +432,20 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
       ),
       child: _isLoading
           ? const SizedBox(
-        height: 20,
-        width: 20,
-        child: CircularProgressIndicator(
-          color: Colors.white,
-          strokeWidth: 2,
-        ),
-      )
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
           : const Text(
-        'REGISTRAR RESTAURANTE',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+              'REGISTRAR RESTAURANTE',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
     );
   }
 }

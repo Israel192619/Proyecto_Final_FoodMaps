@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cases/config/safe_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cases/config/config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,8 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
   bool obscureText = true;
-  bool _isLoading = false; // <-- Añadido aquí
 
   @override
   void initState() {
@@ -42,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _attemptAutoLogin(String username, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login'),
+        Uri.parse(AppConfig.getApiUrl(AppConfig.loginEndpoint)),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
@@ -79,12 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    if (_isLoading) return; // Evita doble pulsación
     if (!_formKey.currentState!.validate()) return;
 
     String username = _usernameController.text;
     String password = _passwordController.text;
 
-    const String apiUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api/auth/login';
+    final String apiUrl = AppConfig.getApiUrl(AppConfig.loginEndpoint);
 
     try {
       setState(() => _isLoading = true);
@@ -135,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacementNamed(
               context,
               '/dueno_home',
-              arguments: restaurante,
+              arguments: restaurante, // Pasa el restaurante como argumento
             );
             break;
 
@@ -240,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              obscureText ? Icons.visibility : Icons.visibility_off,
+                              obscureText ? Icons.visibility_off : Icons.visibility,
                             ),
                             onPressed: () {
                               setState(() {
@@ -259,8 +261,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                       SizedBox(height: screenHeight * 0.03),
-                      SafeButton(
-                        onPressed: _login,
+                      ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                if (_isLoading) return;
+                                _login();
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           padding: EdgeInsets.symmetric(
@@ -268,10 +275,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             vertical: screenHeight * 0.015,
                           ),
                         ),
-                        child: const Text(
-                          'Ingresar',
-                          style: TextStyle(color: Colors.red),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                              )
+                            : const Text(
+                                'Ingresar',
+                                style: TextStyle(color: Colors.red),
+                              ),
                       ),
                       SizedBox(height: screenHeight * 0.03),
                       const Text("¿No tienes una cuenta aún?"),

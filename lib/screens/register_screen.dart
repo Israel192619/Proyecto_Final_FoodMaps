@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:cases/config/config.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -21,10 +22,11 @@ class _RegistroScreenState extends State<RegistroScreen> {
   String? _selectedRol;
 
   Future<void> _registrar() async {
+    if (_loading) return; // Evita doble pulsación
     if (_formKey.currentState!.validate()) {
       setState(() => _loading = true);
 
-      const String apiUrl = 'https://tudominio.com/api/register';
+      final String apiUrl = AppConfig.getApiUrl(AppConfig.registerEndpoint);
 
       try {
         final response = await http.post(
@@ -33,7 +35,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           body: jsonEncode({
             'username': _usernameController.text.trim(),
             'celular': _celularController.text.trim(),
-            'email': _emailController.text.trim(), // Agregado
+            'email': _emailController.text.trim(),
             'password': _pass1Controller.text.trim(),
             'rol': _selectedRol,
           }),
@@ -45,7 +47,6 @@ class _RegistroScreenState extends State<RegistroScreen> {
             SnackBar(content: Text('Registro exitoso')),
           );
           print('Respuesta: $data');
-
           // Aquí puedes navegar a otra pantalla o guardar tokens si es necesario
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -58,7 +59,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         );
       }
 
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -253,7 +254,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   const SizedBox(height: 30),
 
                   ElevatedButton(
-                    onPressed: _loading ? null : _registrar,
+                    onPressed: _loading
+                        ? null
+                        : () async {
+                            if (_loading) return;
+                            await _registrar();
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

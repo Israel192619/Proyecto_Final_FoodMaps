@@ -1,14 +1,14 @@
+// maps_page.dart
+
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_map_custom_windows/google_map_custom_windows.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import '../../../config/theme_provider.dart';
 import 'package:cases/constants/restaurant_info_window.dart';
 import 'MenuRestPage.dart';
 
@@ -26,61 +26,42 @@ class _MapsPageState extends State<MapsPage> {
 
   static final LatLng _defaultCenter = LatLng(-17.382202, -66.151789);
 
-  String? _mapStyle;
-  Timer? _webStyleTimer;
-  bool _isWebStyleApplied = false;
+  // Guarda el último modo de tema para detectar cambios
+  bool? _lastIsDark;
+  bool _mapStyleApplied = false;
 
   @override
   void initState() {
     super.initState();
     _checkPermissionAndFetch();
-    _loadMapStyle();
   }
 
-  Future<void> _loadMapStyle() async {
-    try {
-      if (kIsWeb) {
-        final response = await http.get(Uri.parse('/assets/map_styles/map_style_no_labels.json'));
-        if (response.statusCode == 200) {
-          _mapStyle = response.body;
-          print("✅ Estilo cargado desde web correctamente");
-        } else {
-          print("Error cargando estilo desde web: ${response.statusCode}");
-        }
-      } else {
-        _mapStyle = await rootBundle.loadString('assets/map_styles/map_style_no_labels.json');
-      }
-
-      if (_mapController != null) {
-        _mapController!.setMapStyle(_mapStyle);
-      }
-    } catch (e) {
-      print('Error loading map style: $e');
+  Future<void> _applyMapStyle(bool isDark) async {
+    if (_mapController == null) {
+      print('[MAP_STYLE] _mapController es null, no se puede aplicar el estilo');
+      return;
     }
-  }
-
-  void _applyWebMapStyle() {
-    if (_mapController == null || _mapStyle == null || _isWebStyleApplied) return;
-
-    _mapController!.setMapStyle(_mapStyle).then((_) {
-      _isWebStyleApplied = true;
-    }).catchError((_) {
-      Future.delayed(Duration(milliseconds: 500), () {
-        _applyWebMapStyle();
-      });
-    });
+    final stylePath = isDark
+        ? 'assets/map_styles/map_style_no_labels_night.json'
+        : 'assets/map_styles/map_style_no_labels.json';
+    print('[MAP_STYLE] Cargando estilo: $stylePath');
+    try {
+      final style = await rootBundle.loadString(stylePath);
+      await _mapController?.setMapStyle(style);
+      print('[MAP_STYLE] Estilo aplicado correctamente');
+      _mapStyleApplied = true;
+    } catch (e) {
+      print('[MAP_STYLE] Error loading map style: $e');
+    }
   }
 
   Future<void> _checkPermissionAndFetch() async {
     try {
       Position? position = await Geolocator.getLastKnownPosition();
-
       if (position == null) {
         final status = await Permission.location.status;
         if (status.isGranted && await Geolocator.isLocationServiceEnabled()) {
-          position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.low,
-          );
+          position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
         }
       }
 
@@ -99,34 +80,41 @@ class _MapsPageState extends State<MapsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        GoogleMap(
-          onMapCreated: (controller) async {
-            _mapController = controller;
-            _customController.googleMapController = controller;
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        // Aplica el estilo si el controlador ya existe y el tema cambió o nunca se aplicó
+        if (_mapController != null &&
+            (_lastIsDark != themeProvider.isDarkMode || !_mapStyleApplied)) {
+          print('[MAP_STYLE] build() detecta cambio de tema o estilo no aplicado');
+          _applyMapStyle(themeProvider.isDarkMode);
+        }
+        _lastIsDark = themeProvider.isDarkMode;
 
-            if (_mapStyle != null) {
-              if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-                _mapController!.setMapStyle(_mapStyle);
-              } else if (kIsWeb) {
-                _applyWebMapStyle();
-              }
-            }
-          },
-          initialCameraPosition: CameraPosition(target: _defaultCenter, zoom: 15),
-          markers: _markers,
-          myLocationEnabled: true,
-          onTap: (_) => _customController.hideInfoWindow!(),
-          onCameraMove: (_) => _customController.onCameraMove!(),
-        ),
-        CustomMapInfoWindow(
-          controller: _customController,
-          offset: Offset(0, 30),
-          height: 170,
-          width: 180,
-        )
-      ],
+        return Stack(
+          children: [
+            GoogleMap(
+              onMapCreated: (controller) async {
+                print('[MAP_STYLE] onMapCreated llamado');
+                _mapController = controller;
+                _mapStyleApplied = false;
+                await _applyMapStyle(themeProvider.isDarkMode);
+                _customController.googleMapController = controller;
+              },
+              initialCameraPosition: CameraPosition(target: _defaultCenter, zoom: 15),
+              markers: _markers,
+              myLocationEnabled: true,
+              onTap: (_) => _customController.hideInfoWindow!(),
+              onCameraMove: (_) => _customController.onCameraMove!(),
+            ),
+            CustomMapInfoWindow(
+              controller: _customController,
+              offset: Offset(0, 30),
+              height: 170,
+              width: 180,
+            )
+          ],
+        );
+      },
     );
   }
 
@@ -189,19 +177,20 @@ class _MapsPageState extends State<MapsPage> {
   void _openDetail(Map obj) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MenuRestPage(
-        restaurantId: obj['restaurante_id'],
-        name: obj['nom_rest'],
-        phone: obj['celular'].toString(),
-        imageUrl: obj['imagen'],
-      )),
+      MaterialPageRoute(
+        builder: (_) => MenuRestPage(
+          restaurantId: obj['restaurante_id'],
+          name: obj['nom_rest'],
+          phone: obj['celular'].toString(),
+          imageUrl: obj['imagen'],
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
     _customController.dispose();
-    _webStyleTimer?.cancel();
     super.dispose();
   }
 }
