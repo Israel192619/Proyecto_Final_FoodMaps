@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../../config/theme_provider.dart';
 
 class MapsDuePage extends StatefulWidget {
@@ -17,17 +19,48 @@ class MapsDuePage extends StatefulWidget {
 
 class _MapsDuePageState extends State<MapsDuePage> {
   GoogleMapController? _mapController;
-  final LatLng _defaultPosition = LatLng(-17.382202, -66.151789);
+  LatLng _defaultPosition = LatLng(-17.382202, -66.151789); // Cochabamba por defecto
   Marker? _restauranteMarker;
   int _restauranteStatus = 1;
 
   bool? _lastIsDark;
   bool _mapStyleApplied = false;
 
+  bool _hasCoordenadas = false;
+
   @override
   void initState() {
     super.initState();
+    _setInitialPosition();
     _fetchRestaurantData();
+  }
+
+  Future<void> _setInitialPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final restauranteJson = prefs.getString('restaurante_seleccionado');
+    if (restauranteJson != null) {
+      try {
+        final restaurante = jsonDecode(restauranteJson);
+        if (restaurante['latitud'] != null && restaurante['longitud'] != null) {
+          final lat = double.tryParse(restaurante['latitud'].toString());
+          final lng = double.tryParse(restaurante['longitud'].toString());
+          if (lat != null && lng != null) {
+            setState(() {
+              _defaultPosition = LatLng(lat, lng);
+              _hasCoordenadas = true;
+            });
+            print('[MAPS_DUE_PAGE] Centrado en ubicación guardada: $_defaultPosition');
+            return;
+          }
+        }
+      } catch (e) {
+        print('[MAPS_DUE_PAGE] Error al decodificar restaurante_seleccionado: $e');
+      }
+    }
+    setState(() {
+      _hasCoordenadas = false;
+    });
+    print('[MAPS_DUE_PAGE] Usando ubicación por defecto (Cochabamba)');
   }
 
   Future<void> _applyMapStyle(bool isDark) async {
@@ -51,19 +84,43 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   Future<void> _fetchRestaurantData() async {
     await Future.delayed(Duration(seconds: 1));
-    final latLng = LatLng(-17.383333, -66.15);
-    final nombre = 'Restaurante Ejemplo';
+    final prefs = await SharedPreferences.getInstance();
+    final restauranteJson = prefs.getString('restaurante_seleccionado');
+    LatLng? latLng;
+    String nombre = 'Restaurante Ejemplo';
+
+    if (restauranteJson != null) {
+      try {
+        final restaurante = jsonDecode(restauranteJson);
+        if (restaurante['latitud'] != null && restaurante['longitud'] != null) {
+          final lat = double.tryParse(restaurante['latitud'].toString());
+          final lng = double.tryParse(restaurante['longitud'].toString());
+          if (lat != null && lng != null) {
+            latLng = LatLng(lat, lng);
+          }
+        }
+        if (restaurante['nombre_restaurante'] != null) {
+          nombre = restaurante['nombre_restaurante'];
+        }
+      } catch (e) {
+        print('[MAPS_DUE_PAGE] Error al decodificar restaurante_seleccionado en fetch: $e');
+      }
+    }
 
     setState(() {
       _restauranteStatus = 1;
-      _restauranteMarker = Marker(
-        markerId: MarkerId(widget.restauranteId.toString()),
-        position: latLng,
-        infoWindow: InfoWindow(title: nombre),
-        icon: _restauranteStatus == 1
-            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      );
+      if (latLng != null) {
+        _restauranteMarker = Marker(
+          markerId: MarkerId(widget.restauranteId.toString()),
+          position: latLng,
+          infoWindow: InfoWindow(title: nombre),
+          icon: _restauranteStatus == 1
+              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        );
+      } else {
+        _restauranteMarker = null;
+      }
     });
   }
 
@@ -98,6 +155,12 @@ class _MapsDuePageState extends State<MapsDuePage> {
             _mapController = controller;
             _mapStyleApplied = false;
             await _applyMapStyle(themeProvider.isDarkMode);
+            // Centrar el mapa en la ubicación guardada si existe
+            _mapController?.moveCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(target: _defaultPosition, zoom: 15),
+              ),
+            );
           },
           initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
           markers: _restauranteMarker != null ? {_restauranteMarker!} : {},

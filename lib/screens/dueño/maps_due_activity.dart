@@ -26,7 +26,11 @@ class _VistaDuenoState extends State<MapsDueActivity> {
   late GoogleMapController _mapController;
   int _contadorVistas = 0;
 
-  // Cambia de List<Widget> a List<Widget?> y usa IndexedStack para mantener el estado
+  // Instancia única de cada fragment/page
+  late final MapsDuePage _mapsDuePage;
+  late final PlatosDuenoPage _platosDuenoPage;
+  late final BebidasDuenoPage _bebidasDuenoPage;
+  late final SettingsDuenoPage _settingsDuenoPage;
   late final List<Widget> _pages;
 
   @override
@@ -35,11 +39,17 @@ class _VistaDuenoState extends State<MapsDueActivity> {
     _guardarSesion();
     _fetchRestaurantData();
 
+    // Instanciar solo una vez
+    _mapsDuePage = MapsDuePage(restauranteId: widget.restauranteId);
+    _platosDuenoPage = PlatosDuenoPage(restauranteId: widget.restauranteId);
+    _bebidasDuenoPage = BebidasDuenoPage(restauranteId: widget.restauranteId);
+    _settingsDuenoPage = SettingsDuenoPage(restauranteId: widget.restauranteId);
+
     _pages = [
-      MapsDuePage(restauranteId: widget.restauranteId),
-      PlatosDuenoPage(restauranteId: widget.restauranteId),
-      BebidasDuenoPage(restauranteId: widget.restauranteId),
-      SettingsDuenoPage(restauranteId: widget.restauranteId),
+      _mapsDuePage,
+      _platosDuenoPage,
+      _bebidasDuenoPage,
+      _settingsDuenoPage,
     ];
   }
 
