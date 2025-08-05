@@ -69,51 +69,102 @@ class SettingsPage extends StatelessWidget {
 
         if (snapshot.hasData && snapshot.data == true) {
           final themeProvider = Provider.of<ThemeProvider>(context);
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Switch para tema claro/oscuro
-                  SwitchListTile(
-                    title: const Text("Modo oscuro"),
-                    value: themeProvider.isDarkMode,
-                    onChanged: (value) async {
-                      themeProvider.toggleTheme(value);
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('map_theme', value ? 'oscuro' : 'claro');
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Acción para agregar negocio
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 18),
+            body: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [Colors.black, Colors.grey.shade900]
+                      : [Colors.white, Colors.red.shade50],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Card(
+                    elevation: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_pin, size: 64, color: Colors.red.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Ajustes de Usuario",
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.red.shade700,
+                                ),
+                          ),
+                          const SizedBox(height: 24),
+                          SwitchListTile(
+                            title: const Text("Modo oscuro"),
+                            value: themeProvider.isDarkMode,
+                            activeColor: Colors.red,
+                            onChanged: (value) async {
+                              themeProvider.toggleTheme(value);
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setString('map_theme', value ? 'oscuro' : 'claro');
+                            },
+                            secondary: Icon(
+                              themeProvider.isDarkMode
+                                  ? Icons.dark_mode
+                                  : Icons.light_mode,
+                              color: Colors.red,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Divider(thickness: 1.2, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // Acción para agregar negocio
+                              },
+                              icon: const Icon(Icons.add_business),
+                              label: const Text("Agregar mi negocio"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                textStyle: const TextStyle(fontSize: 18),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _confirmLogout(context),
+                              icon: const Icon(Icons.logout, color: Colors.red),
+                              label: const Text("Cerrar Sesión"),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red, width: 1.5),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                textStyle: const TextStyle(fontSize: 18),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Text("Agregar mi negocio"),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _confirmLogout(context),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 18),
-                      ),
-                      child: const Text("Cerrar Sesión"),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );

@@ -10,6 +10,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart';
 
 
 class NewRestauranteScreen extends StatefulWidget {
@@ -33,6 +35,10 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
   final _ubicacionController = TextEditingController();
   final _celularController = TextEditingController();
   final _tematicaController = TextEditingController();
+
+  LatLng? _selectedLatLng;
+  String? _selectedAddress;
+  double? _selectedZoom;
 
   @override
   void initState() {
@@ -166,6 +172,30 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     );
   }
 
+  Future<void> _seleccionarUbicacionEnMapa() async {
+    LatLng initialPosition = _selectedLatLng ?? LatLng(-17.382202, -66.151789); // Cochabamba por defecto
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _SeleccionarUbicacionMapaScreen(
+          initialPosition: initialPosition,
+          initialZoom: _selectedZoom ?? 18,
+        ),
+      ),
+    );
+    if (result != null && result is Map) {
+      setState(() {
+        _selectedLatLng = result['latlng'];
+        _selectedZoom = result['zoom'];
+      });
+      // Mostrar coordenadas exactas en el campo
+      final coordsStr = '${_selectedLatLng!.latitude},${_selectedLatLng!.longitude},${_selectedZoom?.toStringAsFixed(2) ?? "18"}';
+      setState(() {
+        _ubicacionController.text = coordsStr;
+      });
+    }
+  }
+
   Future<void> _registrarRestaurante() async {
     if (_isLoading) return; // Evita doble pulsación
     if (!_formKey.currentState!.validate()) return;
@@ -191,10 +221,13 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
         'nombre_restaurante': _nombreController.text.trim(),
         'ubicacion': _ubicacionController.text.trim(),
         'celular': _celularController.text.trim(),
-        'estado': '0', // Siempre cerrado al registrar
+        'estado': '0',
         'tematica': _tematicaController.text.trim(),
         'contador_vistas': '0',
         'user_id': _userId.toString(),
+        if (_selectedLatLng != null) 'latitud': _selectedLatLng!.latitude.toString(),
+        if (_selectedLatLng != null) 'longitud': _selectedLatLng!.longitude.toString(),
+        if (_selectedZoom != null) 'zoom': _selectedZoom!.toString(),
       });
 
       // Agregar imagen si existe
@@ -326,11 +359,17 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                 validator: (value) => value!.isEmpty ? 'Ingrese el nombre' : null,
               ),
               const SizedBox(height: 20),
-              _buildTextField(
-                controller: _ubicacionController,
-                label: 'Ubicación',
-                icon: Icons.location_on,
-                validator: (value) => value!.isEmpty ? 'Ingrese la ubicación' : null,
+              // CAMPO UBICACIÓN COMO BOTÓN
+              GestureDetector(
+                onTap: _isLoading ? null : _seleccionarUbicacionEnMapa,
+                child: AbsorbPointer(
+                  child: _buildTextField(
+                    controller: _ubicacionController,
+                    label: 'Ubicación',
+                    icon: Icons.location_on,
+                    validator: (value) => value!.isEmpty ? 'Seleccione la ubicación' : null,
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               _buildTextField(
@@ -446,6 +485,77 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+    );
+  }
+}
+
+// --- Widget para seleccionar ubicación en el mapa ---
+class _SeleccionarUbicacionMapaScreen extends StatefulWidget {
+  final LatLng initialPosition;
+  final double initialZoom;
+  const _SeleccionarUbicacionMapaScreen({required this.initialPosition, required this.initialZoom});
+
+  @override
+  State<_SeleccionarUbicacionMapaScreen> createState() => _SeleccionarUbicacionMapaScreenState();
+}
+
+class _SeleccionarUbicacionMapaScreenState extends State<_SeleccionarUbicacionMapaScreen> {
+  LatLng? _pickedLatLng;
+  double _zoom = 18;
+  GoogleMapController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickedLatLng = widget.initialPosition;
+    _zoom = widget.initialZoom;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Seleccionar ubicación')),
+      body: GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: widget.initialPosition,
+          zoom: widget.initialZoom,
+        ),
+        onMapCreated: (controller) {
+          _controller = controller;
+        },
+        markers: _pickedLatLng != null
+            ? {
+                Marker(
+                  markerId: const MarkerId('picked'),
+                  position: _pickedLatLng!,
+                  draggable: true,
+                  onDragEnd: (pos) {
+                    setState(() {
+                      _pickedLatLng = pos;
+                    });
+                  },
+                ),
+              }
+            : {},
+        onTap: (latLng) {
+          setState(() {
+            _pickedLatLng = latLng;
+          });
+        },
+        onCameraMove: (position) {
+          _zoom = position.zoom;
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _pickedLatLng != null
+            ? () => Navigator.pop(context, {
+                  'latlng': _pickedLatLng,
+                  'zoom': _zoom,
+                })
+            : null,
+        label: const Text('Seleccionar'),
+        icon: const Icon(Icons.check),
+      ),
     );
   }
 }

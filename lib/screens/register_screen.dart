@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cases/config/config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -29,6 +30,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
       final String apiUrl = AppConfig.getApiUrl(AppConfig.registerEndpoint);
 
       try {
+        // Ajusta el rol para que sea "Cliente" o "Dueño"
+        String? rolBackend;
+        if (_selectedRol == 'cliente') {
+          rolBackend = 'Cliente';
+        } else if (_selectedRol == 'dueño') {
+          rolBackend = 'Dueño';
+        }
+
         final response = await http.post(
           Uri.parse(apiUrl),
           headers: {'Content-Type': 'application/json'},
@@ -37,20 +46,31 @@ class _RegistroScreenState extends State<RegistroScreen> {
             'celular': _celularController.text.trim(),
             'email': _emailController.text.trim(),
             'password': _pass1Controller.text.trim(),
-            'rol': _selectedRol,
+            'password_confirmation': _pass2Controller.text.trim(),
+            'rol': rolBackend,
           }),
         );
 
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
           final data = jsonDecode(response.body);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Registro exitoso')),
+            SnackBar(content: Text('Registro exitoso, iniciando sesión...')),
           );
-          print('Respuesta: $data');
-          // Aquí puedes navegar a otra pantalla o guardar tokens si es necesario
+          // Login automático después del registro exitoso
+          await _loginAfterRegister(
+            _usernameController.text.trim(),
+            _pass1Controller.text.trim(),
+          );
         } else {
+          String msg = 'Error: ${response.statusCode}';
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map && data['message'] != null) {
+              msg = data['message'].toString();
+            }
+          } catch (_) {}
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${response.statusCode}')),
+            SnackBar(content: Text(msg)),
           );
         }
       } catch (e) {
@@ -63,10 +83,95 @@ class _RegistroScreenState extends State<RegistroScreen> {
     }
   }
 
+  Future<void> _loginAfterRegister(String username, String password) async {
+    final String apiUrl = AppConfig.getApiUrl(AppConfig.loginEndpoint);
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
+        final data = jsonDecode(response.body);
+        final token = data['access_token'];
+        final user = data['user'];
+        final roleId = user['role_id'];
+        final userId = user['id']; // <-- Obtener el id
+
+        // Guardar credenciales
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', token);
+        await prefs.setString('username', username);
+        await prefs.setString('password', password);
+        await prefs.setBool('mantenersesion', true);
+        await prefs.setInt('userRole', roleId);
+        await prefs.setInt('user_id', userId); // <-- Guardar el id
+
+        // Manejar diferentes respuestas del servidor
+        switch (response.statusCode) {
+          case 200: // Cliente
+            await prefs.setBool('hasRestaurant', true);
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+            break;
+          case 201: // Dueño sin restaurante
+            await prefs.setBool('hasRestaurant', false);
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/new_restaurante');
+            }
+            break;
+          case 202: // Dueño con restaurante
+            final restaurante = data['restaurante'];
+            await prefs.setBool('hasRestaurant', true);
+            await prefs.setString('restaurante', jsonEncode(restaurante));
+            if (mounted) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/dueno_home',
+                arguments: restaurante,
+              );
+            }
+            break;
+          default:
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Respuesta inesperada del servidor')),
+              );
+            }
+        }
+      } else if (response.statusCode == 401) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Credenciales inválidas')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error del servidor: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de conexión: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -219,6 +324,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   // Selección de rol
                   DropdownButtonFormField<String>(
                     value: _selectedRol,
+                    dropdownColor: isDark ? Colors.grey[900] : Colors.white,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.person_outline, color: Colors.black),
                       hintText: "Seleccione su rol",
@@ -229,14 +335,50 @@ class _RegistroScreenState extends State<RegistroScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    items: const [
+                    iconEnabledColor: Colors.red,
+                    // Forzar color del texto seleccionado
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: isDark ? Colors.black : Colors.black, // Siempre negro para el campo
+                    ),
+                    selectedItemBuilder: (context) {
+                      return [
+                        Text(
+                          'Cliente',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: isDark ? Colors.black : Colors.black, // Siempre negro para el campo
+                          ),
+                        ),
+                        Text(
+                          'Dueño',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: isDark ? Colors.black : Colors.black, // Siempre negro para el campo
+                          ),
+                        ),
+                      ];
+                    },
+                    items: [
                       DropdownMenuItem(
                         value: 'cliente',
-                        child: Text('Cliente', style: TextStyle(fontSize: 18, color: Colors.black)),
+                        child: Text(
+                          'Cliente',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: isDark ? Colors.white : Colors.black, // Opciones del menú
+                          ),
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'dueño',
-                        child: Text('Dueño', style: TextStyle(fontSize: 18, color: Colors.black)),
+                        child: Text(
+                          'Dueño',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: isDark ? Colors.white : Colors.black, // Opciones del menú
+                          ),
+                        ),
                       ),
                     ],
                     onChanged: (value) {
@@ -261,19 +403,19 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             await _registrar();
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
+                      backgroundColor: Colors.red, // Mejor contraste
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                     child: _loading
                         ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                         : const Text(
                       "Registrarse",
                       style: TextStyle(
-                        color: Color(0xFFF00000),
+                        color: Colors.white,
                         fontSize: 18,
                       ),
                     ),

@@ -110,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final token = data['access_token'];
         final user = data['user'];
         final roleId = user['role_id'];
+        final userId = user['id']; // <-- Obtener el id
 
         // Guardar credenciales
         await prefs.setString('auth_token', token);
@@ -117,6 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('password', password);
         await prefs.setBool('mantenersesion', true);
         await prefs.setInt('userRole', roleId);
+        await prefs.setInt('user_id', userId); // <-- Guardar el id
 
         // Manejar diferentes respuestas del servidor
         switch (response.statusCode) {

@@ -4,8 +4,7 @@ class AppConfig {
 
   // Endpoints
   static const String loginEndpoint = '/auth/login';
-  static const String registerEndpoint = '/register';
-  // Agrega aquí otros endpoints si los necesitas
+  static const String registerEndpoint = '/auth/register';
 
   static String getApiUrl(String endpoint) => '$apiBaseUrl$endpoint';
 }
