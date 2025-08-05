@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 // Importar las páginas necesarias
 import 'package:cases/screens/dueño/fragments/maps_due_page.dart';
@@ -23,7 +24,10 @@ class _VistaDuenoState extends State<MapsDueActivity> {
   String _nombreRestaurante = '';
   String _imagenRestaurante = '';
   late GoogleMapController _mapController;
-  final List<Widget> _pages = [];
+  int _contadorVistas = 0;
+
+  // Cambia de List<Widget> a List<Widget?> y usa IndexedStack para mantener el estado
+  late final List<Widget> _pages;
 
   @override
   void initState() {
@@ -31,13 +35,12 @@ class _VistaDuenoState extends State<MapsDueActivity> {
     _guardarSesion();
     _fetchRestaurantData();
 
-    // Inicializar páginas con los widgets correctamente importados
-    _pages.addAll([
+    _pages = [
       MapsDuePage(restauranteId: widget.restauranteId),
       PlatosDuenoPage(restauranteId: widget.restauranteId),
       BebidasDuenoPage(restauranteId: widget.restauranteId),
       SettingsDuenoPage(restauranteId: widget.restauranteId),
-    ]);
+    ];
   }
 
   Future<void> _guardarSesion() async {
@@ -47,13 +50,31 @@ class _VistaDuenoState extends State<MapsDueActivity> {
   }
 
   Future<void> _fetchRestaurantData() async {
-    // Simular llamada API
-    await Future.delayed(Duration(seconds: 1));
+    final prefs = await SharedPreferences.getInstance();
+    final restauranteJson = prefs.getString('restaurante_seleccionado');
+    if (restauranteJson != null) {
+      try {
+        final restaurante = jsonDecode(restauranteJson);
+        setState(() {
+          _nombreRestaurante = restaurante['nombre_restaurante'] ?? 'Restaurante';
+          _imagenRestaurante = restaurante['imagen'] ?? '';
+          _restauranteStatus = restaurante['estado'] ?? 1;
+          _contadorVistas = restaurante['contador_vistas'] ?? 0;
+        });
+        print('[MAPS_DUE_ACTIVITY] Datos del restaurante cargados de SharedPreferences: $_nombreRestaurante, $_imagenRestaurante, $_restauranteStatus, $_contadorVistas');
+        return;
+      } catch (e) {
+        print('[MAPS_DUE_ACTIVITY] Error al decodificar restaurante_seleccionado: $e');
+      }
+    }
 
+    // Fallback simulado si no hay datos en SharedPreferences
+    await Future.delayed(Duration(seconds: 1));
     setState(() {
       _nombreRestaurante = 'Restaurante Ejemplo';
       _imagenRestaurante = 'https://i.etsystatic.com/59767526/r/il/bf8743/6912133860/il_fullxfull.6912133860_bbme.jpg';
       _restauranteStatus = 1;
+      _contadorVistas = 123;
     });
   }
 
@@ -73,12 +94,56 @@ class _VistaDuenoState extends State<MapsDueActivity> {
       onWillPop: _onWillPop,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_nombreRestaurante),
+          automaticallyImplyLeading: false, // Quita el botón de retroceso
+          title: Row(
+            children: [
+              // Logo del restaurante
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _imagenRestaurante.isNotEmpty
+                    ? Image.network(
+                        _imagenRestaurante,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+                      )
+                    : const Icon(Icons.image, size: 40),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _nombreRestaurante,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.remove_red_eye, size: 18, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$_contadorVistas vistas',
+                          style: const TextStyle(fontSize: 14, color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           actions: [
             _buildStatusSwitch(),
           ],
         ),
-        body: _pages[_currentIndex],
+        // Cambia aquí: usa IndexedStack para mantener el estado de los fragments/pages
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),

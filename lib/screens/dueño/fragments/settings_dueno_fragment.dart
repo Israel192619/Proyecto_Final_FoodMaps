@@ -113,6 +113,7 @@ class SettingsDuenoPage extends StatelessWidget {
                         );
                         if (selected != null && selected is Map && selected['id'] != null) {
                           await prefs.setInt('restaurante_id', selected['id']);
+                          await prefs.setString('restaurante_seleccionado', jsonEncode(selected));
                           Navigator.pushReplacementNamed(
                             context,
                             '/dueno_home',

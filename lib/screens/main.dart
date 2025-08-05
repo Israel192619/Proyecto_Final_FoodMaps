@@ -5,7 +5,6 @@ import 'login_screen.dart';
 import 'register_screen.dart';
 import 'cliente/maps_cli_activity.dart';
 import 'dueño/maps_due_activity.dart';
-import 'SplashScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
@@ -52,13 +51,16 @@ class MyApp extends StatelessWidget {
                 restauranteId = restaurante['restaurante_id'] is int
                     ? restaurante['restaurante_id']
                     : int.tryParse(restaurante['restaurante_id'].toString()) ?? 0;
+              } else if (restaurante is Map && restaurante['id'] != null) {
+                restauranteId = restaurante['id'] is int
+                    ? restaurante['id']
+                    : int.tryParse(restaurante['id'].toString()) ?? 0;
               }
               return MaterialPageRoute(
                 builder: (context) => MapsDueActivity(restauranteId: restauranteId),
                 settings: settings,
               );
             }
-            // Soporte para restaurante_selector con argumentos
             if (settings.name == '/restaurante_selector') {
               final restaurantes = settings.arguments as List;
               return MaterialPageRoute(
@@ -83,59 +85,86 @@ class AuthWrapper extends StatelessWidget {
       future: _checkAuthAndRestaurantStatus(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
+          print('[AUTHWRAPPER] Esperando datos de autenticación...');
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         final authData = snapshot.data ?? {};
         final isAuthenticated = authData['authenticated'] ?? false;
         final keepSession = authData['keepSession'] ?? false;
         final hasCredentials = authData['hasCredentials'] ?? false;
-        final hasRestaurant = authData['hasRestaurant'] ?? false;
         final userRole = authData['userRole'] ?? 1;
         final forcedLogout = authData['forcedLogout'] ?? false;
         final restaurantes = authData['restaurantes'] ?? [];
         final restauranteId = authData['restauranteId'];
+        final restauranteSeleccionado = authData['restauranteSeleccionado'];
 
-        // Si fue un logout forzado, ir al login
+        print('[AUTHWRAPPER] Datos: '
+            'isAuthenticated=$isAuthenticated, keepSession=$keepSession, hasCredentials=$hasCredentials, '
+            'userRole=$userRole, forcedLogout=$forcedLogout, restauranteId=$restauranteId, restaurantes=$restaurantes, restauranteSeleccionado=$restauranteSeleccionado');
+
         if (forcedLogout) {
+          print('[AUTHWRAPPER] Redirigiendo a LoginScreen por forcedLogout');
           return const LoginScreen();
         }
 
         if (!isAuthenticated || (!keepSession && !hasCredentials)) {
+          print('[AUTHWRAPPER] Redirigiendo a LoginScreen por no autenticado o sin credenciales');
           return const LoginScreen();
         }
 
-        // Lógica de redirección basada en rol y estado del restaurante
-        if (userRole == 2) { // Dueño
-          if (!hasRestaurant) {
-            return const NewRestauranteScreen();
+        // --- Lógica para dueño ---
+        if (userRole == 2) {
+          print('[AUTHWRAPPER] [DUEÑO] Entrando a lógica de dueño');
+          Map<String, dynamic>? restauranteSeleccionadoLista;
+          print('[AUTHWRAPPER] [DUEÑO] restaurantes: $restaurantes');
+          print('[AUTHWRAPPER] [DUEÑO] restauranteId: $restauranteId');
+          print('[AUTHWRAPPER] [DUEÑO] restauranteSeleccionado: $restauranteSeleccionado');
+          if (restaurantes is List && restaurantes.isNotEmpty && restauranteId != null) {
+            try {
+              restauranteSeleccionadoLista = restaurantes.firstWhere(
+                (r) => r['id'] == restauranteId,
+                orElse: () {
+                  print('[AUTHWRAPPER] [DUEÑO] orElse de firstWhere ejecutado');
+                  return <String, dynamic>{};
+                },
+              );
+              print('[AUTHWRAPPER] [DUEÑO] restauranteSeleccionadoLista: $restauranteSeleccionadoLista');
+              if (restauranteSeleccionadoLista != null && restauranteSeleccionadoLista.isNotEmpty) {
+                print('[AUTHWRAPPER] Dueño: restaurante seleccionado encontrado en lista, id=$restauranteId');
+                return MapsDueActivity(restauranteId: restauranteId);
+              }
+            } catch (e) {
+              print('[AUTHWRAPPER] [DUEÑO] Excepción en firstWhere: $e');
+              restauranteSeleccionadoLista = null;
+            }
+            if (restauranteSeleccionado != null && restauranteSeleccionado['id'] == restauranteId) {
+              print('[AUTHWRAPPER] Dueño: restaurante seleccionado solo en SharedPreferences, id=$restauranteId');
+              return MapsDueActivity(restauranteId: restauranteId);
+            } else {
+              print('[AUTHWRAPPER] Dueño: restauranteId $restauranteId no está en la lista ni en prefs');
+            }
           }
-          // Si hay varios restaurantes y no hay uno seleccionado, ir al selector
           if (restaurantes is List && restaurantes.length > 1 && restauranteId == null) {
-            // Redirige al selector de restaurantes
+            print('[AUTHWRAPPER] Dueño: varios restaurantes y ninguno seleccionado, mostrando selector');
             return RestauranteSelectorScreen(restaurantes: restaurantes);
           }
-          // Si hay uno seleccionado, ir directo al home del dueño
-          if (restauranteId != null) {
-            return MapsDueActivity(restauranteId: restauranteId);
-          }
-          // Si solo hay uno, ir directo
           if (restaurantes is List && restaurantes.length == 1) {
+            print('[AUTHWRAPPER] Dueño: solo un restaurante, id=${restaurantes[0]['id']}');
             return MapsDueActivity(restauranteId: restaurantes[0]['id']);
           }
-          // Fallback
+          print('[AUTHWRAPPER] Dueño: no tiene restaurantes, mostrando NewRestauranteScreen');
           return const NewRestauranteScreen();
-        } else { // Cliente
-          return const MapsCliActivity();
         }
+        print('[AUTHWRAPPER] Cliente: mostrando MapsCliActivity');
+        return const MapsCliActivity();
       },
     );
   }
 
   Future<Map<String, dynamic>> _checkAuthAndRestaurantStatus() async {
-    // Forzar que el splash se muestre al menos 1.5 segundos
-    await Future.delayed(const Duration(milliseconds: 1500));
-
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     final keepSession = prefs.getBool('mantenersesion') ?? false;
@@ -143,15 +172,18 @@ class AuthWrapper extends StatelessWidget {
     final password = prefs.getString('password');
     final userRole = prefs.getInt('userRole') ?? 1;
     final forcedLogout = prefs.getBool('forcedLogout') ?? false;
-    final restauranteId = prefs.getInt('restaurante_id');
+    int? restauranteId = prefs.getInt('restaurante_id');
 
-    // Resetear el estado de forcedLogout para futuros inicios
+    print('[AUTHWRAPPER] [CHECK_AUTH] token=$token, keepSession=$keepSession, username=$username, '
+        'userRole=$userRole, forcedLogout=$forcedLogout, restauranteId=$restauranteId');
+
     if (forcedLogout) {
       await prefs.setBool('forcedLogout', false);
+      print('[AUTHWRAPPER] [CHECK_AUTH] forcedLogout detectado, limpiando flag');
     }
 
-    // Verificar autenticación básica
     if (token == null || token.isEmpty) {
+      print('[AUTHWRAPPER] [CHECK_AUTH] No hay token, usuario no autenticado');
       return {
         'authenticated': false,
         'keepSession': keepSession,
@@ -162,8 +194,10 @@ class AuthWrapper extends StatelessWidget {
       };
     }
 
-    // Para dueños, verificar si tienen restaurante y cuántos
+    List restaurantes = [];
+    Map<String, dynamic>? restauranteSeleccionado;
     if (userRole == 2) {
+      bool backendOk = false;
       try {
         final response = await http.get(
           Uri.parse('https://tuapi.com/api/restaurantes/verificar'),
@@ -173,31 +207,77 @@ class AuthWrapper extends StatelessWidget {
           },
         );
 
+        print('[AUTHWRAPPER] [CHECK_AUTH] Respuesta backend restaurantes/verificar: status=${response.statusCode}, body=${response.body}');
+
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final restaurantes = data['restaurantes'] ?? [];
-          return {
-            'authenticated': true,
-            'keepSession': keepSession,
-            'hasCredentials': username != null && password != null,
-            'userRole': userRole,
-            'hasRestaurant': data['tieneRestaurante'] ?? false,
-            'forcedLogout': forcedLogout,
-            'restaurantes': restaurantes,
-            'restauranteId': restauranteId,
-          };
+          try {
+            final data = jsonDecode(response.body);
+            restaurantes = data['restaurantes'] ?? [];
+            print('[AUTHWRAPPER] [CHECK_AUTH] Restaurantes obtenidos del backend: $restaurantes');
+            backendOk = true;
+          } catch (e) {
+            print('[AUTHWRAPPER] [CHECK_AUTH] Error al decodificar JSON del backend: $e');
+          }
         }
       } catch (e) {
-        print('Error al verificar restaurante: $e');
+        print('[AUTHWRAPPER] [CHECK_AUTH] Excepción al verificar restaurante: $e');
       }
+
+      if (!backendOk || restaurantes.isEmpty) {
+        final restaurantesJson = prefs.getString('restaurantes');
+        print('[AUTHWRAPPER] [CHECK_AUTH] Restaurantes backend vacíos o error, buscando en SharedPreferences...');
+        if (restaurantesJson != null && restaurantesJson.isNotEmpty) {
+          try {
+            restaurantes = List<Map<String, dynamic>>.from(jsonDecode(restaurantesJson));
+            print('[AUTHWRAPPER] [CHECK_AUTH] Restaurantes recuperados de SharedPreferences: $restaurantes');
+          } catch (e) {
+            print('[AUTHWRAPPER] [CHECK_AUTH] Error al decodificar restaurantes de SharedPreferences: $e');
+          }
+        } else {
+          print('[AUTHWRAPPER] [CHECK_AUTH] No hay restaurantes guardados en SharedPreferences');
+        }
+      }
+
+      if (restauranteId != null) {
+        final restauranteSelJson = prefs.getString('restaurante_seleccionado');
+        print('[AUTHWRAPPER] [CHECK_AUTH] Buscando restaurante_seleccionado en SharedPreferences...');
+        if (restauranteSelJson != null && restauranteSelJson.isNotEmpty) {
+          try {
+            restauranteSeleccionado = jsonDecode(restauranteSelJson);
+            print('[AUTHWRAPPER] [CHECK_AUTH] Restaurante seleccionado recuperado de SharedPreferences: $restauranteSeleccionado');
+          } catch (e) {
+            print('[AUTHWRAPPER] [CHECK_AUTH] Error al decodificar restaurante_seleccionado: $e');
+          }
+        } else {
+          print('[AUTHWRAPPER] [CHECK_AUTH] No hay restaurante_seleccionado guardado en SharedPreferences');
+        }
+      }
+
+      if (restauranteId != null &&
+          !(restaurantes.any((r) => r['id'] == restauranteId))) {
+        print('[AUTHWRAPPER] [CHECK_AUTH] restaurante_id guardado ($restauranteId) no existe en la lista, eliminando');
+        restauranteId = null;
+        await prefs.remove('restaurante_id');
+      }
+      print('[AUTHWRAPPER] [CHECK_AUTH] Dueño autenticado, restaurantes=$restaurantes, restauranteId=$restauranteId, restauranteSeleccionado=$restauranteSeleccionado');
+      return {
+        'authenticated': true,
+        'keepSession': keepSession,
+        'hasCredentials': username != null && password != null,
+        'userRole': userRole,
+        'forcedLogout': forcedLogout,
+        'restaurantes': restaurantes,
+        'restauranteId': restauranteId,
+        'restauranteSeleccionado': restauranteSeleccionado,
+      };
     }
 
+    print('[AUTHWRAPPER] [CHECK_AUTH] Usuario no dueño o error, autenticado=${token != null && token.isNotEmpty}');
     return {
-      'authenticated': token.isNotEmpty,
+      'authenticated': token != null && token.isNotEmpty,
       'keepSession': keepSession,
       'hasCredentials': username != null && password != null,
       'userRole': userRole,
-      'hasRestaurant': userRole == 1,
       'forcedLogout': forcedLogout,
     };
   }
