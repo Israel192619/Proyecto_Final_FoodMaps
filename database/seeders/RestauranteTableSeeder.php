@@ -15,75 +15,65 @@ class RestauranteTableSeeder extends Seeder
     {
         DB::table('restaurantes')->insert([
             [
-                'nombre_restaurante'=> 'Restaurante America’s',
-                'ubicacion' => 'Calle Bolívar, San Pedro, Cochabamba',
-                'latitud' => -17.391440,
-                'longitud' => -66.149140,
-                'celular' => '71777777',
+                'nombre_restaurante'=> 'Paprika',
+                'ubicacion' => '-17.3846,-66.1566',
+                'celular' => '78512345',
                 'imagen' => null,
-                'estado' => 0,
-                'tematica' => 'Comida típica',
-                'contador_vistas' => 0,
-                'user_id' => 1,
-                'created_at' => now(),
-                'updated_at' => now()
-            ],
-            [
-                'nombre_restaurante'=> 'Restaurant Tunari Prado',
-                'ubicacion' => 'Av. José Ballivián 676, Cochabamba',
-                'latitud' => -17.386600,
-                'longitud' => -66.157100,
-                'celular' => '72888888',
-                'imagen' => null,
-                'estado' => 0,
+                'estado' => 1,
                 'tematica' => 'Internacional',
                 'contador_vistas' => 0,
-                'user_id' => 2,
+                'user_id' => 1, // Maria Lopez
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
-                'nombre_restaurante'=> 'DKFE Restaurante',
-                'ubicacion' => 'Av. Pando 1143, Cochabamba',
-                'latitud' => -17.400980,
-                'longitud' => -66.042290,
-                'celular' => '73456789',
+                'nombre_restaurante'=> 'La Cantonata',
+                'ubicacion' => '-17.3895,-66.1568',
+                'celular' => '78234567',
                 'imagen' => null,
-                'estado' => 0,
-                'tematica' => 'Latinoamericana',
+                'estado' => 1,
+                'tematica' => 'Italiana',
                 'contador_vistas' => 0,
-                'user_id' => 3,
+                'user_id' => 2, // Carlos Mendez
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
-                'nombre_restaurante'=> 'Pampaku Wasi',
-                'ubicacion' => 'Quillacollo, Cochabamba',
-                'latitud' => -17.347450,
-                'longitud' => -66.179230,
+                'nombre_restaurante'=> 'Casa de Campo',
+                'ubicacion' => '-17.3875,-66.1598',
+                'celular' => '78345678',
+                'imagen' => null,
+                'estado' => 1,
+                'tematica' => 'Boliviana',
+                'contador_vistas' => 0,
+                'user_id' => 3, // Andrea Garcia
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'nombre_restaurante'=> 'Sushi Itto',
+                'ubicacion' => '-17.3867,-66.1543',
+                'celular' => '78789012',
+                'imagen' => null,
+                'estado' => 1,
+                'tematica' => 'Japonesa',
+                'contador_vistas' => 0,
+                'user_id' => 4, // Jorge Fernandez
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'nombre_restaurante'=> 'Tunupa Restaurant',
+                'ubicacion' => '-17.3923,-66.1612',
                 'celular' => '78901234',
                 'imagen' => null,
-                'estado' => 0,
-                'tematica' => 'Carnes a la brasa',
+                'estado' => 1,
+                'tematica' => 'Boliviana',
                 'contador_vistas' => 0,
-                'user_id' => 4,
+                'user_id' => 5, // Laura Mamani
                 'created_at' => now(),
                 'updated_at' => now()
             ],
-            [
-                'nombre_restaurante'=> 'Llajtaymanta Restaurante',
-                'ubicacion' => 'Quillacollo, Cochabamba',
-                'latitud' => -17.376960,
-                'longitud' => -66.301290,
-                'celular' => '76543210',
-                'imagen' => null,
-                'estado' => 0,
-                'tematica' => 'Comida boliviana',
-                'contador_vistas' => 0,
-                'user_id' => 5,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]
             /* [
                 'nombre_restaurante'=> 'Veggie Life',
                 'ubicacion' => 'Calle Salud 321',
