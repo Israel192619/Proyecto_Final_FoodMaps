@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../../config/theme_provider.dart';
 
 class SettingsDuenoPage extends StatelessWidget {
@@ -96,6 +97,35 @@ class SettingsDuenoPage extends StatelessWidget {
                     title: 'Seguridad',
                     onTap: () => _mostrarSeguridad(),
                   ),
+                  _buildSettingItem(
+                    context,
+                    icon: Icons.restaurant_menu,
+                    title: 'Cambiar restaurante',
+                    onTap: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      final restaurantesJson = prefs.getString('restaurantes');
+                      if (restaurantesJson != null) {
+                        final restaurantes = List<Map<String, dynamic>>.from(jsonDecode(restaurantesJson));
+                        final selected = await Navigator.pushNamed(
+                          context,
+                          '/restaurante_selector',
+                          arguments: restaurantes,
+                        );
+                        if (selected != null && selected is Map && selected['id'] != null) {
+                          await prefs.setInt('restaurante_id', selected['id']);
+                          Navigator.pushReplacementNamed(
+                            context,
+                            '/dueno_home',
+                            arguments: selected,
+                          );
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No se encontró la lista de restaurantes')),
+                        );
+                      }
+                    },
+                  ),
                   const SizedBox(height: 32),
                   Center(
                     child: OutlinedButton.icon(
@@ -155,8 +185,13 @@ class SettingsDuenoPage extends StatelessWidget {
     // Implementar lógica de seguridad
   }
 
-  void _cerrarSesion(BuildContext context) {
-    // Implementar lógica de cierre de sesión
-    Navigator.of(context).pop();
+  void _cerrarSesion(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('restaurante_id');
+    await prefs.remove('restaurantes');
+    await prefs.setBool('mantenersesion', false);
+    await prefs.remove('username');
+    await prefs.remove('password');
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 }

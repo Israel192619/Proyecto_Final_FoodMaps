@@ -421,6 +421,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     await prefs.remove('username');
     await prefs.remove('password');
     await prefs.setBool('hasRestaurant', false);
+    await prefs.remove('restaurante_id');
+    await prefs.remove('restaurantes');
 
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(

@@ -110,20 +110,72 @@ class _LoginScreenState extends State<LoginScreen> {
         final token = data['access_token'];
         final user = data['user'];
         final roleId = user['role_id'];
-        final userId = user['id']; // <-- Obtener el id
+        final userId = user['id'];
 
-        // Guardar credenciales
         await prefs.setString('auth_token', token);
         await prefs.setString('username', username);
         await prefs.setString('password', password);
         await prefs.setBool('mantenersesion', true);
         await prefs.setInt('userRole', roleId);
-        await prefs.setInt('user_id', userId); // <-- Guardar el id
+        await prefs.setInt('user_id', userId);
+
+        // --- NUEVO: Manejo de múltiples restaurantes para DUEÑO ---
+        if (roleId == 2) { // Suponiendo que 2 es el rol de dueño
+          final restaurantes = data['restaurantes'] ?? data['restaurante'];
+          if (restaurantes is List && restaurantes.length > 1) {
+            // Guarda la lista de restaurantes en SharedPreferences
+            await prefs.setString('restaurantes', jsonEncode(restaurantes));
+            // Verifica si ya hay uno seleccionado en preferencias
+            final savedRestId = prefs.getInt('restaurante_id');
+            if (savedRestId != null && restaurantes.any((r) => r['id'] == savedRestId)) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/dueno_home',
+                arguments: restaurantes.firstWhere((r) => r['id'] == savedRestId),
+              );
+            } else {
+              // Redirige a selector y guarda la selección
+              final selected = await Navigator.pushNamed(
+                context,
+                '/restaurante_selector',
+                arguments: restaurantes,
+              );
+              if (selected != null && selected is Map && selected['id'] != null) {
+                await prefs.setInt('restaurante_id', selected['id']);
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/dueno_home',
+                  arguments: selected,
+                );
+              }
+            }
+            return;
+          } else if (restaurantes is List && restaurantes.length == 1) {
+            await prefs.setString('restaurantes', jsonEncode(restaurantes));
+            await prefs.setInt('restaurante_id', restaurantes[0]['id']);
+            Navigator.pushReplacementNamed(
+              context,
+              '/dueno_home',
+              arguments: restaurantes[0],
+            );
+            return;
+          } else if (restaurantes is Map) {
+            await prefs.setString('restaurantes', jsonEncode([restaurantes]));
+            await prefs.setInt('restaurante_id', restaurantes['id']);
+            Navigator.pushReplacementNamed(
+              context,
+              '/dueno_home',
+              arguments: restaurantes,
+            );
+            return;
+          }
+        }
+        // --- FIN NUEVO ---
 
         // Manejar diferentes respuestas del servidor
         switch (response.statusCode) {
           case 200: // Cliente
-            await prefs.setBool('hasRestaurant', true); // Clientes siempre tienen "restaurante"
+            await prefs.setBool('hasRestaurant', true);
             Navigator.pushReplacementNamed(context, '/home');
             break;
 
@@ -136,10 +188,11 @@ class _LoginScreenState extends State<LoginScreen> {
             final restaurante = data['restaurante'];
             await prefs.setBool('hasRestaurant', true);
             await prefs.setString('restaurante', jsonEncode(restaurante));
+            await prefs.setInt('restaurante_id', restaurante['id']);
             Navigator.pushReplacementNamed(
               context,
               '/dueno_home',
-              arguments: restaurante, // Pasa el restaurante como argumento
+              arguments: restaurante,
             );
             break;
 

@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:provider/provider.dart';
 import '../config/theme_provider.dart';
 import '../config/app_themes.dart';
+import 'dueño/restaurante_selector.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
           initialRoute: '/',
           routes: {
             '/': (context) => const AuthWrapper(),
-            '/home': (context) => const AuthWrapper(), // <-- Añadido para resolver el error de ruta
+            '/home': (context) => const AuthWrapper(),
             '/register': (context) => const RegistroScreen(),
             '/login': (context) => const LoginScreen(),
             '/mapsCliActivity': (context) => const MapsCliActivity(),
@@ -54,6 +55,14 @@ class MyApp extends StatelessWidget {
               }
               return MaterialPageRoute(
                 builder: (context) => MapsDueActivity(restauranteId: restauranteId),
+                settings: settings,
+              );
+            }
+            // Soporte para restaurante_selector con argumentos
+            if (settings.name == '/restaurante_selector') {
+              final restaurantes = settings.arguments as List;
+              return MaterialPageRoute(
+                builder: (context) => RestauranteSelectorScreen(restaurantes: restaurantes),
                 settings: settings,
               );
             }
@@ -84,6 +93,8 @@ class AuthWrapper extends StatelessWidget {
         final hasRestaurant = authData['hasRestaurant'] ?? false;
         final userRole = authData['userRole'] ?? 1;
         final forcedLogout = authData['forcedLogout'] ?? false;
+        final restaurantes = authData['restaurantes'] ?? [];
+        final restauranteId = authData['restauranteId'];
 
         // Si fue un logout forzado, ir al login
         if (forcedLogout) {
@@ -96,9 +107,24 @@ class AuthWrapper extends StatelessWidget {
 
         // Lógica de redirección basada en rol y estado del restaurante
         if (userRole == 2) { // Dueño
-          return hasRestaurant
-              ? const MapsDueActivity(restauranteId: 0)
-              : const NewRestauranteScreen();
+          if (!hasRestaurant) {
+            return const NewRestauranteScreen();
+          }
+          // Si hay varios restaurantes y no hay uno seleccionado, ir al selector
+          if (restaurantes is List && restaurantes.length > 1 && restauranteId == null) {
+            // Redirige al selector de restaurantes
+            return RestauranteSelectorScreen(restaurantes: restaurantes);
+          }
+          // Si hay uno seleccionado, ir directo al home del dueño
+          if (restauranteId != null) {
+            return MapsDueActivity(restauranteId: restauranteId);
+          }
+          // Si solo hay uno, ir directo
+          if (restaurantes is List && restaurantes.length == 1) {
+            return MapsDueActivity(restauranteId: restaurantes[0]['id']);
+          }
+          // Fallback
+          return const NewRestauranteScreen();
         } else { // Cliente
           return const MapsCliActivity();
         }
@@ -117,6 +143,7 @@ class AuthWrapper extends StatelessWidget {
     final password = prefs.getString('password');
     final userRole = prefs.getInt('userRole') ?? 1;
     final forcedLogout = prefs.getBool('forcedLogout') ?? false;
+    final restauranteId = prefs.getInt('restaurante_id');
 
     // Resetear el estado de forcedLogout para futuros inicios
     if (forcedLogout) {
@@ -135,7 +162,7 @@ class AuthWrapper extends StatelessWidget {
       };
     }
 
-    // Para dueños, verificar si tienen restaurante
+    // Para dueños, verificar si tienen restaurante y cuántos
     if (userRole == 2) {
       try {
         final response = await http.get(
@@ -148,6 +175,7 @@ class AuthWrapper extends StatelessWidget {
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
+          final restaurantes = data['restaurantes'] ?? [];
           return {
             'authenticated': true,
             'keepSession': keepSession,
@@ -155,6 +183,8 @@ class AuthWrapper extends StatelessWidget {
             'userRole': userRole,
             'hasRestaurant': data['tieneRestaurante'] ?? false,
             'forcedLogout': forcedLogout,
+            'restaurantes': restaurantes,
+            'restauranteId': restauranteId,
           };
         }
       } catch (e) {
