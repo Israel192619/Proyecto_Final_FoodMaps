@@ -32,22 +32,63 @@ class _PlatosDuenoPageState extends State<PlatosDuenoPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: _platos.length,
-      itemBuilder: (context, index) {
-        final plato = _platos[index];
-        return ListTile(
-          leading: plato['imagen'] != null && plato['imagen'].isNotEmpty
-              ? Image.network(plato['imagen'])
-              : Icon(Icons.food_bank),
-          title: Text(plato['nombre']),
-          subtitle: Text('\$${plato['precio'].toString()}'),
-          trailing: IconButton(
-            icon: Icon(Icons.edit),
-            onPressed: () => _editarPlato(plato),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [Colors.black, Colors.grey.shade900]
+              : [Colors.white, Colors.red.shade50],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double maxWidth = constraints.maxWidth < 600 ? constraints.maxWidth * 0.98 : 540;
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: Card(
+                  elevation: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: _platos.length,
+                          itemBuilder: (context, index) {
+                            final plato = _platos[index];
+                            return ListTile(
+                              leading: plato['imagen'] != null && plato['imagen'].isNotEmpty
+                                  ? Image.network(plato['imagen'])
+                                  : Icon(Icons.food_bank),
+                              title: Text(plato['nombre']),
+                              subtitle: Text('\$${plato['precio'].toString()}'),
+                              trailing: IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () => _editarPlato(plato),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

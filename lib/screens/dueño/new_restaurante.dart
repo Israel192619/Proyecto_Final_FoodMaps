@@ -209,6 +209,13 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
       _isSuccess = false;
     });
 
+    // Mostrar loader modal
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
       // Crear la solicitud multipart
       var request = http.MultipartRequest(
@@ -252,6 +259,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
         _mostrarExito('Restaurante registrado exitosamente');
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) {
+          // Cerrar loader modal antes de navegar
+          Navigator.of(context, rootNavigator: true).pop();
           Navigator.pushReplacementNamed(context, '/mapsDueActivity');
         }
       } else {
@@ -266,6 +275,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+        // Cerrar loader modal si sigue abierto
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
@@ -413,6 +424,12 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     );
   }
   Future<void> _salirAlLogin() async {
+    // Mostrar loader modal
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
     final prefs = await SharedPreferences.getInstance();
     // Marcar como logout forzado
     await prefs.setBool('forcedLogout', true);
@@ -425,6 +442,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     await prefs.remove('restaurantes');
 
     if (mounted) {
+      // Cerrar loader modal antes de navegar
+      Navigator.of(context, rootNavigator: true).pop();
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/login',

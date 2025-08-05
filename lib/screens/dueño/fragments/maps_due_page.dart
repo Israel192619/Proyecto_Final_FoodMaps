@@ -6,7 +6,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
+import '../../../config/config.dart';
 import '../../../config/theme_provider.dart';
+import '../../cliente/fragments/maps_page.dart'; // Importa MapsDesktopTable
 
 class MapsDuePage extends StatefulWidget {
   final int restauranteId;
@@ -28,11 +32,15 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   bool _hasCoordenadas = false;
 
+  Set<Marker> _allMarkers = {};
+  List<Map<String, dynamic>> _restaurantesData = [];
+
   @override
   void initState() {
     super.initState();
     _setInitialPosition();
     _fetchRestaurantData();
+    _fetchLocationsFromApi(); // Cambia a la lógica de maps_page
   }
 
   Future<void> _setInitialPosition() async {
@@ -124,6 +132,75 @@ class _MapsDuePageState extends State<MapsDuePage> {
     });
   }
 
+  // Reemplaza _fetchAllRestaurants por la lógica de maps_page
+  Future<void> _fetchLocationsFromApi() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    print('[MAPS_DUE_PAGE] _fetchLocationsFromApi llamado. token=$token');
+    if (token == null) {
+      print('[MAPS_DUE_PAGE] No hay token de autenticación');
+      return;
+    }
+    try {
+      final url = '${AppConfig.apiBaseUrl}${AppConfig.restaurantesClienteEndpoint}';
+      print('[MAPS_DUE_PAGE] Realizando GET a $url');
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      print('[MAPS_DUE_PAGE] Respuesta statusCode: ${response.statusCode}');
+      print('[MAPS_DUE_PAGE] Respuesta body: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('[MAPS_DUE_PAGE] Decodificado data: $data');
+        final List restaurantes = data is List ? data : (data['restaurantes'] ?? []);
+        print('[MAPS_DUE_PAGE] Restaurantes extraídos: $restaurantes');
+        Set<Marker> markers = {};
+        List<Map<String, dynamic>> restaurantesDataTmp = [];
+        for (var obj in restaurantes) {
+          print('[MAPS_DUE_PAGE] Procesando restaurante: $obj');
+          // Agrega SIEMPRE a la tabla
+          restaurantesDataTmp.add(obj);
+
+          final lat = obj['latitud'] != null ? double.tryParse(obj['latitud'].toString()) : null;
+          final lng = obj['longitud'] != null ? double.tryParse(obj['longitud'].toString()) : null;
+          final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
+          if (lat == null || lng == null) {
+            print('[MAPS_DUE_PAGE] Restaurante sin coordenadas, solo tabla.');
+            continue;
+          }
+
+          final markerId = MarkerId(obj['id'].toString());
+          final icon = BitmapDescriptor.defaultMarkerWithHue(
+            estado == 0 ? BitmapDescriptor.hueRed : BitmapDescriptor.hueGreen,
+          );
+
+          final position = LatLng(lat, lng);
+          markers.add(
+            Marker(
+              markerId: markerId,
+              position: position,
+              icon: icon,
+              infoWindow: InfoWindow(title: obj['nombre_restaurante'] ?? ''),
+            ),
+          );
+        }
+        print('[MAPS_DUE_PAGE] Total restaurantes agregados a _restaurantesData: ${restaurantesDataTmp.length}');
+        setState(() {
+          _allMarkers = markers;
+          _restaurantesData = restaurantesDataTmp;
+        });
+      } else {
+        print('[MAPS_DUE_PAGE] Error al obtener restaurantes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('[MAPS_DUE_PAGE] Excepción al obtener restaurantes: $e');
+    }
+  }
+
   void _updateMarkerStatus(int status) {
     if (_restauranteMarker != null) {
       setState(() {
@@ -139,6 +216,19 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+         defaultTargetPlatform == TargetPlatform.linux ||
+         defaultTargetPlatform == TargetPlatform.macOS);
+
+    print('[MAPS_DUE_PAGE] Plataforma detectada: ${defaultTargetPlatform.toString()}, isDesktop=$isDesktop, kIsWeb=$kIsWeb');
+    print('[MAPS_DUE_PAGE] _restaurantesData.length=${_restaurantesData.length}');
+
+    if (isDesktop) {
+      print('[MAPS_DUE_PAGE] Mostrando tabla de restaurantes en escritorio');
+      return _buildDesktopTable(context);
+    }
+
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
         // Aplica el estilo si el controlador ya existe y el tema cambió o nunca se aplicó
@@ -149,6 +239,10 @@ class _MapsDuePageState extends State<MapsDuePage> {
         }
         _lastIsDark = themeProvider.isDarkMode;
 
+        Set<Marker> markersToShow = {..._allMarkers};
+        if (_restauranteMarker != null) {
+          markersToShow.add(_restauranteMarker!);
+        }
         return GoogleMap(
           onMapCreated: (controller) async {
             print('[MAP_STYLE] onMapCreated llamado');
@@ -163,11 +257,16 @@ class _MapsDuePageState extends State<MapsDuePage> {
             );
           },
           initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
-          markers: _restauranteMarker != null ? {_restauranteMarker!} : {},
+          markers: markersToShow,
           myLocationEnabled: true,
           myLocationButtonEnabled: false,
         );
       },
     );
+  }
+
+  Widget _buildDesktopTable(BuildContext context) {
+    // Reutiliza el widget de tabla de escritorio de maps_page
+    return MapsDesktopTable(restaurantesData: _restaurantesData);
   }
 }
