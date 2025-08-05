@@ -15,11 +15,11 @@ class RestauranteController extends Controller
     {
         $user = auth()->user();
         if (!$user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'No está autorizado'], 401);
         }
         $restaurantes = Restaurante::where('user_id', $user->id)->get();
         $data = [
-            'mensaje' => 'Lista de restaurantes',
+            'mensaje' => 'Lista de restaurantes propios',
             'restaurantes' => $restaurantes,
         ];
         return response()->json($data, 200);
@@ -178,6 +178,31 @@ class RestauranteController extends Controller
 
         $data = [
             "message" => "Restaurante eliminado"
+        ];
+        return response()->json($data, 200);
+    }
+
+    public function publicIndex(){
+        $restaurantes = Restaurante::where('estado', 1)->get();
+        if($restaurantes->isEmpty()) {
+            return response()->json(['mensaje' => 'No hay restaurantes activos'], 404);
+        }
+        $data = [
+            'mensaje' => 'Lista de restaurantes activos',
+            'restaurantes' => $restaurantes,
+        ];
+        return response()->json($data, 200);
+    }
+
+    public function showPublic($id)
+    {
+        $restaurante = Restaurante::find($id);
+        if (!$restaurante || $restaurante->estado !== 1) {
+            return response()->json(['mensaje' => 'Restaurante no encontrado o no activo'], 404);
+        }
+        $data = [
+            'mensaje' => 'Detalles del restaurante',
+            'restaurante' => $restaurante,
         ];
         return response()->json($data, 200);
     }

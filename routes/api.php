@@ -15,16 +15,22 @@ Route::group([
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api')->name('logout');
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:api')->name('refresh');
     Route::post('/me', [AuthController::class, 'me'])->middleware('auth:api')->name('me');
-
-
 });
 
 Route::group([
     'middleware' => ['api'],
 ], function () {
-    //Rutas para los restaurantes
-    Route::apiResource('restaurantes', RestauranteController::class)
-        ->middleware(['auth:api', IsOwnerMiddleware::class]);
+
+    // Restaurantes rutas publicas (clientes)
+    Route::prefix('clientes')->middleware('auth:api')->group(function () {
+        Route::get('/restaurantes', [RestauranteController::class, 'publicIndex']);
+        Route::get('/restaurantes/{id}', [RestauranteController::class, 'showPublic']);
+    });
+
+    // Restaurantes rutas privadas (Dueños)
+    Route::group(['middleware' => ['auth:api', IsOwnerMiddleware::class]], function () {
+        Route::apiResource('restaurantes',RestauranteController::class);
+    });
 
     //Rutas para los usuarios
     Route::apiResource('users', UserController::class)->except(['store']);
