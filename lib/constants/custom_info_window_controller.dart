@@ -3,11 +3,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_map_custom_windows/google_map_custom_windows.dart';
 
 class CustomInfoWindowController {
-  late GoogleMapCustomWindowController customController;
-  late GoogleMapController googleMapController;
+  final GoogleMapCustomWindowController customController = GoogleMapCustomWindowController();
+  GoogleMapController? googleMapController;
 
   void initialize(GoogleMapController mapController) {
-    customController = GoogleMapCustomWindowController();
     googleMapController = mapController;
     customController.googleMapController = googleMapController;
   }

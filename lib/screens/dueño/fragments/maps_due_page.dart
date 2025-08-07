@@ -1,5 +1,3 @@
-// maps_due_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +9,9 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import '../../../config/config.dart';
 import '../../../config/theme_provider.dart';
 import '../../cliente/fragments/maps_page.dart'; // Importa MapsDesktopTable
+import 'package:cases/constants/custom_info_window_controller.dart'; // Importa el controlador personalizado
+import 'package:google_map_custom_windows/google_map_custom_windows.dart'; // <-- Agrega este import
+import 'package:cases/constants/restaurant_info_window.dart'; // Reutiliza el mismo widget de info window
 
 class MapsDuePage extends StatefulWidget {
   final int restauranteId;
@@ -21,8 +22,10 @@ class MapsDuePage extends StatefulWidget {
   _MapsDuePageState createState() => _MapsDuePageState();
 }
 
+// Define la clase _MapsDuePageState como el State de MapsDuePage
 class _MapsDuePageState extends State<MapsDuePage> {
   GoogleMapController? _mapController;
+  CustomInfoWindowController? _customController; // Controlador para info windows personalizados
   LatLng _defaultPosition = LatLng(-17.382202, -66.151789); // Cochabamba por defecto
   Marker? _restauranteMarker;
   int _restauranteStatus = 1;
@@ -38,9 +41,10 @@ class _MapsDuePageState extends State<MapsDuePage> {
   @override
   void initState() {
     super.initState();
+    _customController = CustomInfoWindowController();
     _setInitialPosition();
-    _fetchRestaurantData();
-    _fetchLocationsFromApi(); // Cambia a la lógica de maps_page
+    _fetchRestaurantData(); // Aquí se inicializa el estado correctamente
+    _fetchLocationsFromApi();
   }
 
   Future<void> _setInitialPosition() async {
@@ -92,32 +96,55 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   Future<void> _fetchRestaurantData() async {
     await Future.delayed(Duration(seconds: 1));
+    print('[MARCADOR] _fetchRestaurantData INICIO');
     final prefs = await SharedPreferences.getInstance();
     final restauranteJson = prefs.getString('restaurante_seleccionado');
     LatLng? latLng;
     String nombre = 'Restaurante Ejemplo';
+    Map<String, dynamic>? restauranteData;
 
     if (restauranteJson != null) {
       try {
-        final restaurante = jsonDecode(restauranteJson);
-        if (restaurante['latitud'] != null && restaurante['longitud'] != null) {
-          final lat = double.tryParse(restaurante['latitud'].toString());
-          final lng = double.tryParse(restaurante['longitud'].toString());
-          if (lat != null && lng != null) {
-            latLng = LatLng(lat, lng);
+        restauranteData = jsonDecode(restauranteJson);
+        print('[MARCADOR] restauranteData obtenido: $restauranteData');
+        // --- CAMBIO: Extraer lat/lng desde "ubicacion" si existe ---
+        if (restauranteData != null) {
+          if (restauranteData['ubicacion'] != null && restauranteData['ubicacion'] is String) {
+            final ubicacionStr = restauranteData['ubicacion'] as String;
+            final parts = ubicacionStr.split(',');
+            if (parts.length == 2) {
+              final lat = double.tryParse(parts[0]);
+              final lng = double.tryParse(parts[1]);
+              if (lat != null && lng != null) {
+                latLng = LatLng(lat, lng);
+                print('[MARCADOR] Coordenadas del restaurante (ubicacion): $latLng');
+              }
+            }
+          } else if (restauranteData['latitud'] != null && restauranteData['longitud'] != null) {
+            final lat = double.tryParse(restauranteData['latitud'].toString());
+            final lng = double.tryParse(restauranteData['longitud'].toString());
+            if (lat != null && lng != null) {
+              latLng = LatLng(lat, lng);
+              print('[MARCADOR] Coordenadas del restaurante (latitud/longitud): $latLng');
+            }
+          }
+          if (restauranteData['nombre_restaurante'] != null) {
+            nombre = restauranteData['nombre_restaurante'];
+          }
+          if (restauranteData['estado'] != null) {
+            _restauranteStatus = restauranteData['estado'];
+            print('[MARCADOR] Estado inicial del restaurante: $_restauranteStatus');
           }
         }
-        if (restaurante['nombre_restaurante'] != null) {
-          nombre = restaurante['nombre_restaurante'];
-        }
       } catch (e) {
-        print('[MAPS_DUE_PAGE] Error al decodificar restaurante_seleccionado en fetch: $e');
+        print('[MARCADOR] Error al decodificar restaurante_seleccionado en fetch: $e');
       }
     }
 
     setState(() {
-      _restauranteStatus = 1;
+      print('[MARCADOR] setState para crear marcador principal');
       if (latLng != null) {
+        print('[MARCADOR] Creando marcador con estado $_restauranteStatus');
         _restauranteMarker = Marker(
           markerId: MarkerId(widget.restauranteId.toString()),
           position: latLng,
@@ -125,8 +152,26 @@ class _MapsDuePageState extends State<MapsDuePage> {
           icon: _restauranteStatus == 1
               ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
               : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          onTap: () {
+            print('[MARCADOR] onTap del marcador');
+            if (_customController != null) {
+              _customController!.showInfoWindow(
+                [
+                  RestaurantInfoWindow(
+                    restaurantData: restauranteData ?? {},
+                    onMenuPressed: () {
+                      print('[MARCADOR] Ver menú de restaurante: $nombre');
+                    },
+                  )
+                ],
+                [latLng!],
+              );
+            }
+          },
         );
+        print('[MARCADOR] Marcador creado: $_restauranteMarker');
       } else {
+        print('[MARCADOR] No hay coordenadas, no se crea marcador');
         _restauranteMarker = null;
       }
     });
@@ -136,9 +181,16 @@ class _MapsDuePageState extends State<MapsDuePage> {
   Future<void> _fetchLocationsFromApi() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    print('[MAPS_DUE_PAGE] Token obtenido de SharedPreferences: $token');
     print('[MAPS_DUE_PAGE] _fetchLocationsFromApi llamado. token=$token');
-    if (token == null) {
+    if (token == null || token.isEmpty) {
       print('[MAPS_DUE_PAGE] No hay token de autenticación');
+      setState(() {
+        _restaurantesData = [];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No autenticado. Inicia sesión nuevamente.'))
+      );
       return;
     }
     try {
@@ -151,33 +203,40 @@ class _MapsDuePageState extends State<MapsDuePage> {
           'Content-Type': 'application/json',
         },
       );
+      print('[MAPS_DUE_PAGE] Headers enviados: Authorization: Bearer $token');
       print('[MAPS_DUE_PAGE] Respuesta statusCode: ${response.statusCode}');
       print('[MAPS_DUE_PAGE] Respuesta body: ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('[MAPS_DUE_PAGE] Decodificado data: $data');
-        final List restaurantes = data is List ? data : (data['restaurantes'] ?? []);
-        print('[MAPS_DUE_PAGE] Restaurantes extraídos: $restaurantes');
-        Set<Marker> markers = {};
-        List<Map<String, dynamic>> restaurantesDataTmp = [];
-        for (var obj in restaurantes) {
-          print('[MAPS_DUE_PAGE] Procesando restaurante: $obj');
-          // Agrega SIEMPRE a la tabla
-          restaurantesDataTmp.add(obj);
 
-          final lat = obj['latitud'] != null ? double.tryParse(obj['latitud'].toString()) : null;
-          final lng = obj['longitud'] != null ? double.tryParse(obj['longitud'].toString()) : null;
+        // ADAPTACIÓN: Usa la clave 'data' que contiene la lista de restaurantes
+        List<Map<String, dynamic>> restaurantesDataTmp = [];
+        if (data is Map && data.containsKey('data') && data['data'] is List) {
+          restaurantesDataTmp = List<Map<String, dynamic>>.from(data['data']);
+        } else {
+          restaurantesDataTmp = [];
+        }
+
+        print('[MAPS_DUE_PAGE] Restaurantes extraídos: $restaurantesDataTmp');
+        Set<Marker> markers = {};
+        for (var obj in restaurantesDataTmp) {
+          print('[MAPS_DUE_PAGE] Procesando restaurante: $obj');
+          final latLngStr = obj['ubicacion']?.toString();
+          double? lat, lng;
+          if (latLngStr != null && latLngStr.contains(',')) {
+            final parts = latLngStr.split(',');
+            lat = double.tryParse(parts[0]);
+            lng = double.tryParse(parts[1]);
+          }
           final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
           if (lat == null || lng == null) {
             print('[MAPS_DUE_PAGE] Restaurante sin coordenadas, solo tabla.');
             continue;
           }
-
           final markerId = MarkerId(obj['id'].toString());
           final icon = BitmapDescriptor.defaultMarkerWithHue(
             estado == 0 ? BitmapDescriptor.hueRed : BitmapDescriptor.hueGreen,
           );
-
           final position = LatLng(lat, lng);
           markers.add(
             Marker(
@@ -193,34 +252,69 @@ class _MapsDuePageState extends State<MapsDuePage> {
           _allMarkers = markers;
           _restaurantesData = restaurantesDataTmp;
         });
+      } else if (response.statusCode == 401) {
+        print('[MAPS_DUE_PAGE] Error de autenticación: ${response.body}');
+        setState(() {
+          _restaurantesData = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No autenticado. Por favor, inicia sesión nuevamente.'))
+        );
       } else {
         print('[MAPS_DUE_PAGE] Error al obtener restaurantes: ${response.statusCode}');
+        setState(() {
+          _restaurantesData = [];
+        });
       }
     } catch (e) {
       print('[MAPS_DUE_PAGE] Excepción al obtener restaurantes: $e');
-    }
-  }
-
-  void _updateMarkerStatus(int status) {
-    if (_restauranteMarker != null) {
       setState(() {
-        _restauranteStatus = status;
-        _restauranteMarker = _restauranteMarker!.copyWith(
-          iconParam: status == 1
-              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        );
+        _restaurantesData = [];
       });
     }
   }
+
+  // Método público para actualizar el estado y el marcador desde fuera
+  void actualizarEstadoRestaurante(int nuevoEstado) {
+    print('[MARCADOR] actualizarEstadoRestaurante llamado con estado: $nuevoEstado');
+    setState(() {
+      print('[MARCADOR] setState dentro de actualizarEstadoRestaurante');
+      _restauranteStatus = nuevoEstado;
+      if (_restauranteMarker != null) {
+        print('[MARCADOR] Actualizando marcador existente');
+        final oldMarker = _restauranteMarker!;
+        final latLng = oldMarker.position;
+        final nombre = oldMarker.infoWindow.title ?? 'Restaurante';
+        print('[MARCADOR] Estado previo del marcador: ${_restauranteStatus == 1 ? 'Abierto' : 'Cerrado'}');
+        _restauranteMarker = Marker(
+          markerId: oldMarker.markerId,
+          position: latLng,
+          infoWindow: InfoWindow(title: nombre),
+          icon: nuevoEstado == 1
+              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          onTap: oldMarker.onTap,
+        );
+        print('[MARCADOR] Marcador actualizado: $_restauranteMarker');
+      } else {
+        print('[MARCADOR] No existe marcador para actualizar');
+      }
+    });
+  }
+
+  // Widget _buildCustomInfoWindow() {
+  //   // Ya no se usa, ahora se reutiliza RestaurantInfoWindow
+  //   return const SizedBox.shrink();
+  // }
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
-         defaultTargetPlatform == TargetPlatform.linux ||
-         defaultTargetPlatform == TargetPlatform.macOS);
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS);
 
+    print('[MARCADOR] build() llamado');
     print('[MAPS_DUE_PAGE] Plataforma detectada: ${defaultTargetPlatform.toString()}, isDesktop=$isDesktop, kIsWeb=$kIsWeb');
     print('[MAPS_DUE_PAGE] _restaurantesData.length=${_restaurantesData.length}');
 
@@ -231,7 +325,6 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
-        // Aplica el estilo si el controlador ya existe y el tema cambió o nunca se aplicó
         if (_mapController != null &&
             (_lastIsDark != themeProvider.isDarkMode || !_mapStyleApplied)) {
           print('[MAP_STYLE] build() detecta cambio de tema o estilo no aplicado');
@@ -241,25 +334,45 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
         Set<Marker> markersToShow = {..._allMarkers};
         if (_restauranteMarker != null) {
+          print('[MARCADOR] Agregando marcador principal al mapa');
           markersToShow.add(_restauranteMarker!);
+        } else {
+          print('[MARCADOR] No hay marcador principal para agregar');
         }
-        return GoogleMap(
-          onMapCreated: (controller) async {
-            print('[MAP_STYLE] onMapCreated llamado');
-            _mapController = controller;
-            _mapStyleApplied = false;
-            await _applyMapStyle(themeProvider.isDarkMode);
-            // Centrar el mapa en la ubicación guardada si existe
-            _mapController?.moveCamera(
-              CameraUpdate.newCameraPosition(
-                CameraPosition(target: _defaultPosition, zoom: 15),
+        return Stack(
+          children: [
+            GoogleMap(
+              onMapCreated: (controller) async {
+                print('[MAP_STYLE] onMapCreated llamado');
+                _mapController = controller;
+                _mapStyleApplied = false;
+                await _applyMapStyle(themeProvider.isDarkMode);
+                if (_customController != null) {
+                  _customController!.initialize(controller);
+                }
+                // Centrar el mapa en la ubicación guardada si existe
+                _mapController?.moveCamera(
+                  CameraUpdate.newCameraPosition(
+                    CameraPosition(target: _defaultPosition, zoom: 15),
+                  ),
+                );
+              },
+              initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
+              markers: markersToShow,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              onTap: (_) => _customController?.hideInfoWindow(),
+              onCameraMove: (_) => _customController?.customController.onCameraMove!(),
+            ),
+            // Usa el widget correcto de info window personalizado
+            if (_customController != null)
+              CustomMapInfoWindow(
+                controller: _customController!.customController,
+                offset: const Offset(0, 30),
+                height: 170,
+                width: 180,
               ),
-            );
-          },
-          initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
-          markers: markersToShow,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
+          ],
         );
       },
     );
@@ -267,6 +380,12 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   Widget _buildDesktopTable(BuildContext context) {
     // Reutiliza el widget de tabla de escritorio de maps_page
-    return MapsDesktopTable(restaurantesData: _restaurantesData);
+    return MapsDesktopTable(
+      restaurantesData: _restaurantesData,
+      onMenuPressed: (rest) {
+        // Aquí puedes poner la lógica para ver el menú del restaurante
+        print('Ver menú de restaurante: ${rest['nombre_restaurante']}');
+      },
+    );
   }
 }
