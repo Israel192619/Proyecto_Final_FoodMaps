@@ -37,6 +37,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   Set<Marker> _allMarkers = {};
   List<Map<String, dynamic>> _restaurantesData = [];
+  Key _mapKey = UniqueKey(); // NUEVO: Key para forzar redibujado del mapa
 
   @override
   void initState() {
@@ -195,7 +196,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
     }
     try {
       final url = '${AppConfig.apiBaseUrl}${AppConfig.restaurantesClienteEndpoint}';
-      print('[MAPS_DUE_PAGE] Realizando GET a $url');
+      print('[WSO][RUTA] GET restaurantes cliente: $url');
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -281,23 +282,84 @@ class _MapsDuePageState extends State<MapsDuePage> {
       print('[MARCADOR] setState dentro de actualizarEstadoRestaurante');
       _restauranteStatus = nuevoEstado;
       if (_restauranteMarker != null) {
-        print('[MARCADOR] Actualizando marcador existente');
-        final oldMarker = _restauranteMarker!;
-        final latLng = oldMarker.position;
-        final nombre = oldMarker.infoWindow.title ?? 'Restaurante';
-        print('[MARCADOR] Estado previo del marcador: ${_restauranteStatus == 1 ? 'Abierto' : 'Cerrado'}');
-        _restauranteMarker = Marker(
-          markerId: oldMarker.markerId,
-          position: latLng,
-          infoWindow: InfoWindow(title: nombre),
-          icon: nuevoEstado == 1
-              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          onTap: oldMarker.onTap,
+        print('[MARCADOR] Eliminando marcador anterior');
+        _restauranteMarker = null;
+      }
+      // Vuelve a crear el marcador principal con el nuevo color
+      final prefs = SharedPreferences.getInstance();
+      prefs.then((sprefs) {
+        final restauranteJson = sprefs.getString('restaurante_seleccionado');
+        if (restauranteJson != null) {
+          try {
+            final restauranteData = jsonDecode(restauranteJson);
+            LatLng? latLng;
+            String nombre = restauranteData['nombre_restaurante'] ?? 'Restaurante';
+            if (restauranteData['ubicacion'] != null && restauranteData['ubicacion'] is String) {
+              final ubicacionStr = restauranteData['ubicacion'] as String;
+              final parts = ubicacionStr.split(',');
+              if (parts.length == 2) {
+                final lat = double.tryParse(parts[0]);
+                final lng = double.tryParse(parts[1]);
+                if (lat != null && lng != null) {
+                  latLng = LatLng(lat, lng);
+                }
+              }
+            }
+            if (latLng != null) {
+              print('[MARCADOR] Creando nuevo marcador con estado $nuevoEstado');
+              setState(() {
+                _restauranteMarker = Marker(
+                  markerId: MarkerId(widget.restauranteId.toString()),
+                  position: latLng!,
+                  infoWindow: InfoWindow(title: nombre),
+                  icon: nuevoEstado == 1
+                      ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+                      : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                );
+              });
+            } else {
+              print('[MARCADOR] No se pudo obtener coordenadas para el nuevo marcador');
+            }
+          } catch (e) {
+            print('[MARCADOR] Error al crear nuevo marcador: $e');
+          }
+        }
+      });
+    });
+  }
+
+  // NUEVO: Actualiza el marcador de cualquier restaurante por su ID y estado
+  void actualizarMarcadorRestaurantePorId(int id, int nuevoEstado) {
+    print('[MARCADOR] actualizarMarcadorRestaurantePorId llamado para id=$id, estado=$nuevoEstado');
+    Marker? marcadorAnterior;
+    try {
+      marcadorAnterior = _allMarkers.firstWhere(
+        (m) => m.markerId.value == id.toString(),
+      );
+    } catch (e) {
+      marcadorAnterior = null;
+    }
+    setState(() {
+      if (marcadorAnterior != null) {
+        print('[MARCADOR] Eliminando marcador anterior de id=$id');
+        _allMarkers.remove(marcadorAnterior);
+        final nuevaPos = marcadorAnterior.position;
+        final nuevoNombre = marcadorAnterior.infoWindow.title ?? '';
+        final nuevoIcono = nuevoEstado == 1
+            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+        final nuevoMarcador = Marker(
+          markerId: MarkerId(id.toString()),
+          position: nuevaPos,
+          infoWindow: InfoWindow(title: nuevoNombre),
+          icon: nuevoIcono,
         );
-        print('[MARCADOR] Marcador actualizado: $_restauranteMarker');
+        _allMarkers.add(nuevoMarcador);
+        print('[MARCADOR] Marcador actualizado en _allMarkers para id=$id');
+        // Elimina la línea que fuerza el redibujado de todo el mapa:
+        // _mapKey = UniqueKey();
       } else {
-        print('[MARCADOR] No existe marcador para actualizar');
+        print('[MARCADOR] No se encontró marcador para id=$id');
       }
     });
   }
@@ -342,6 +404,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
         return Stack(
           children: [
             GoogleMap(
+              key: _mapKey, // NUEVO: Usa la key para forzar redibujado
               onMapCreated: (controller) async {
                 print('[MAP_STYLE] onMapCreated llamado');
                 _mapController = controller;
