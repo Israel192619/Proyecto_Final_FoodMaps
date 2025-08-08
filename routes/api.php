@@ -30,6 +30,7 @@ Route::group([
     // Restaurantes rutas privadas (Dueños)
     Route::group(['middleware' => ['auth:api', IsOwnerMiddleware::class]], function () {
         Route::apiResource('restaurantes',RestauranteController::class);
+        Route::post('/restaurantes/{id}/change-status', [RestauranteController::class, 'changeStatus']);
     });
 
     //Rutas para los usuarios
