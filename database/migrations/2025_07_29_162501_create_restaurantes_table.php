@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('imagen')->nullable();
             $table->integer('estado');
             $table->string('tematica');
-            $table->integer('contador_vistas');
+            $table->integer('contador_vistas')->default(0);
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });
