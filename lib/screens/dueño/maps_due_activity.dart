@@ -8,9 +8,9 @@ import 'package:web_socket_channel/web_socket_channel.dart'; // <-- Corrige el i
 
 // Importar las páginas necesarias
 import 'package:cases/screens/dueño/fragments/maps_due_page.dart' show MapsDuePage;
-import 'package:cases/screens/dueño/fragments/dueno_platos.dart';
-import 'package:cases/screens/dueño/fragments/dueno_bebidas.dart';
-import 'package:cases/screens/dueño/fragments/settings_dueno_fragment.dart';
+import 'package:cases/screens/dueño/fragments/dueno_platos_page.dart';
+import 'package:cases/screens/dueño/fragments/dueno_bebidas_page.dart';
+import 'package:cases/screens/dueño/fragments/settings_dueno_page.dart';
 import 'package:cases/config/config.dart';
 
 class MapsDueActivity extends StatefulWidget {

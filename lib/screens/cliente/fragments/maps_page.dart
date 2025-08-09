@@ -15,7 +15,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import '../../../config/theme_provider.dart';
 import '../../../config/config.dart';
 import 'package:cases/constants/restaurant_info_window.dart';
-import 'MenuRestPage.dart';
+import '../../publica/Menu_Restaurante.dart'; // Agrega este import
 
 class MapsPage extends StatefulWidget {
   @override
@@ -329,14 +329,6 @@ class _MapsPageState extends State<MapsPage> {
     );
   }
 
-  Future<void> _animateTo(double lat, double lng, double zoom) async {
-    if (_mapController != null) {
-      await _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(target: LatLng(lat, lng), zoom: zoom)),
-      );
-    }
-  }
-
   void _openDetail(Map obj) {
     // Corrige los campos para evitar errores de tipo
     final int restaurantId = obj['restaurante_id'] is int
@@ -346,12 +338,12 @@ class _MapsPageState extends State<MapsPage> {
             : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
     final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
     final String phone = obj['celular']?.toString() ?? '';
-    final String imageUrl = obj['imagen']?.toString() ?? ''; // <-- Asegura que sea String, no String?
+    final String imageUrl = obj['imagen']?.toString() ?? '';
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MenuRestPage(
+        builder: (_) => MenuRestaurante(
           restaurantId: restaurantId,
           name: name,
           phone: phone,
@@ -359,6 +351,14 @@ class _MapsPageState extends State<MapsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _animateTo(double lat, double lng, double zoom) async {
+    if (_mapController != null) {
+      await _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(CameraPosition(target: LatLng(lat, lng), zoom: zoom)),
+      );
+    }
   }
 
   Widget _buildDesktopTable(BuildContext context) {

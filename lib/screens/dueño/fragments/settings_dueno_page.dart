@@ -197,45 +197,65 @@ class SettingsDuenoPage extends StatelessWidget {
   }
 
   void _cerrarSesion(BuildContext context) async {
-    // Mostrar loader modal
-    showDialog(
+    final confirm = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sí'),
+          ),
+        ],
+      ),
     );
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    // Guarda el modo oscuro antes de limpiar
-    final mapTheme = prefs.getString('map_theme');
-    // Llamada a la API para cerrar sesión
-    if (token != null && token.isNotEmpty) {
-      try {
-        final response = await http.post(
-          Uri.parse('${AppConfig.apiBaseUrl}/auth/logout'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        );
-        print('Logout API status: ${response.statusCode}');
-      } catch (e) {
-        print('Error al llamar logout: $e');
+
+    if (confirm == true) {
+      // Mostrar loader modal
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      // Guarda el modo oscuro antes de limpiar
+      final mapTheme = prefs.getString('map_theme');
+      // Llamada a la API para cerrar sesión
+      if (token != null && token.isNotEmpty) {
+        try {
+          final response = await http.post(
+            Uri.parse('${AppConfig.apiBaseUrl}/auth/logout'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          );
+          print('Logout API status: ${response.statusCode}');
+        } catch (e) {
+          print('Error al llamar logout: $e');
+        }
       }
-    }
-    await prefs.clear();
-    // Restaurar el modo oscuro después de limpiar
-    if (mapTheme != null) {
-      await prefs.setString('map_theme', mapTheme);
-      // Fuerza el tema oscuro si el valor es 'oscuro'
-      if (mapTheme == 'oscuro') {
-        Provider.of<ThemeProvider>(context, listen: false).setDarkMode(true);
-      } else {
-        Provider.of<ThemeProvider>(context, listen: false).setDarkMode(false);
+      await prefs.clear();
+      // Restaurar el modo oscuro después de limpiar
+      if (mapTheme != null) {
+        await prefs.setString('map_theme', mapTheme);
+        // Fuerza el tema oscuro si el valor es 'oscuro'
+        if (mapTheme == 'oscuro') {
+          Provider.of<ThemeProvider>(context, listen: false).setDarkMode(true);
+        } else {
+          Provider.of<ThemeProvider>(context, listen: false).setDarkMode(false);
+        }
       }
+      // Cerrar loader modal
+      Navigator.of(context, rootNavigator: true).pop();
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      print('[VISTA SETTINGS] [REDIR] Redirigiendo a LoginScreen desde cerrar sesión en settings');
     }
-    // Cerrar loader modal
-    Navigator.of(context, rootNavigator: true).pop();
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-    print('[VISTA SETTINGS] [REDIR] Redirigiendo a LoginScreen desde cerrar sesión en settings');
   }
 }

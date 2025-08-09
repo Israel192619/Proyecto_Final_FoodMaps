@@ -12,6 +12,7 @@ import '../../cliente/fragments/maps_page.dart'; // Importa MapsDesktopTable
 import 'package:cases/constants/custom_info_window_controller.dart'; // Importa el controlador personalizado
 import 'package:google_map_custom_windows/google_map_custom_windows.dart'; // <-- Agrega este import
 import 'package:cases/constants/restaurant_info_window.dart'; // Reutiliza el mismo widget de info window
+import '../../publica/Menu_Restaurante.dart'; // Agrega este import
 
 class MapsDuePage extends StatefulWidget {
   final int restauranteId;
@@ -273,7 +274,26 @@ class _MapsDuePageState extends State<MapsDuePage> {
                     'imagen': imagenSafe, // Siempre String, nunca null
                   },
                   onMenuPressed: () {
-                    print('[window] Ver menú de restaurante: ${obj['nombre_restaurante']}');
+                    // Navega a Menu_Restaurante.dart
+                    final int restaurantId = obj['restaurante_id'] is int
+                        ? obj['restaurante_id']
+                        : (obj['id'] is int
+                            ? obj['id']
+                            : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
+                    final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
+                    final String phone = obj['celular']?.toString() ?? '';
+                    final String imageUrl = obj['imagen']?.toString() ?? '';
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MenuRestaurante(
+                          restaurantId: restaurantId,
+                          name: name,
+                          phone: phone,
+                          imageUrl: imageUrl,
+                        ),
+                      ),
+                    );
                   },
                 );
                 _customController?.showInfoWindow([infoWidget], [position]);
@@ -604,7 +624,25 @@ class _MapsDuePageState extends State<MapsDuePage> {
                 'imagen': imagenSafe,
               },
               onMenuPressed: () {
-                print('[window] Ver menú de restaurante: ${obj['nombre_restaurante']}');
+                final int restaurantId = obj['restaurante_id'] is int
+                    ? obj['restaurante_id']
+                    : (obj['id'] is int
+                        ? obj['id']
+                        : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
+                final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
+                final String phone = obj['celular']?.toString() ?? '';
+                final String imageUrl = obj['imagen']?.toString() ?? '';
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MenuRestaurante(
+                      restaurantId: restaurantId,
+                      name: name,
+                      phone: phone,
+                      imageUrl: imageUrl,
+                    ),
+                  ),
+                );
               },
             );
             _customController?.showInfoWindow([infoWidget], [position]);
@@ -622,9 +660,28 @@ class _MapsDuePageState extends State<MapsDuePage> {
     return MapsDesktopTable(
       restaurantesData: _restaurantesData,
       onMenuPressed: (rest) {
-        // Aquí puedes poner la lógica para ver el menú del restaurante
-        print('Ver menú de restaurante: ${rest['nombre_restaurante']}');
+        // Navega a Menu_Restaurante.dart
+        final int restaurantId = rest['restaurante_id'] is int
+            ? rest['restaurante_id']
+            : (rest['id'] is int
+                ? rest['id']
+                : int.tryParse(rest['restaurante_id']?.toString() ?? rest['id']?.toString() ?? '0') ?? 0);
+        final String name = rest['nom_rest'] ?? rest['nombre_restaurante'] ?? '';
+        final String phone = rest['celular']?.toString() ?? '';
+        final String imageUrl = rest['imagen']?.toString() ?? '';
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MenuRestaurante(
+              restaurantId: restaurantId,
+              name: name,
+              phone: phone,
+              imageUrl: imageUrl,
+            ),
+          ),
+        );
       },
     );
   }
 }
+
