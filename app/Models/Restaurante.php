@@ -25,12 +25,9 @@ class Restaurante extends Model
     {
         return $this->hasOne(Menu::class);
     }
-
-    /**
- * Evento booted del modelo Restaurante.
- * Se ejecuta cuando se actualiza el estado del restaurante
- * y gestiona el envío de eventos en tiempo real.
- */
+    protected $casts = [
+        'estado' => 'integer',
+    ];
     protected static function booted()
     {
         static::updated(function ($restaurante) {

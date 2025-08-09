@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Menu;
 use App\Models\Restaurante;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class RestauranteController extends Controller
@@ -40,13 +42,13 @@ class RestauranteController extends Controller
             'nombre_restaurante' => 'required|string|max:255',
             'ubicacion' => 'required|string|max:255',
             'celular' => 'required|string|max:15',
-            'imagen' => 'nullable',
+            'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'estado' => 'required',
             'tematica' => 'required|string|max:255',
             //'contador_vistas' => 'nullable|integer',
         ]);
 
-        if($validate->fails()) {
+        if ($validate->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
@@ -54,33 +56,55 @@ class RestauranteController extends Controller
             ], 422);
         }
 
-        //$restaurante = Restaurante::create($request->all());
-        $restaurante = new Restaurante;
-        $restaurante->nombre_restaurante = $request->nombre_restaurante;
-        $restaurante->ubicacion = $request->ubicacion;
-        $restaurante->celular = $request->celular;
-        $restaurante->imagen = $request->imagen ?? null;
-        $restaurante->estado = $request->estado;
-        $restaurante->tematica = $request->tematica;
-        //$restaurante->contador_vistas = $request->contador_vistas;
-        $restaurante->user_id = auth()->user()->id;
-        $restaurante->save();
+        $path = null;
+        if ($request->hasFile('imagen')) {
+            $path = Storage::disk('public')->putFile('restaurantes', $request->file('imagen'));
+        }
 
-        $menu = new Menu();
-        $menu->restaurante_id = $restaurante->id;
-        $menu->save();
+        DB::beginTransaction();
 
-        if(!$restaurante) {
+        try {
+            $restaurante = new Restaurante();
+            $restaurante->nombre_restaurante = $request->nombre_restaurante;
+            $restaurante->ubicacion = $request->ubicacion;
+            $restaurante->celular = $request->celular;
+            $restaurante->imagen = $path;
+            $restaurante->estado = $request->estado;
+            $restaurante->tematica = $request->tematica;
+            //$restaurante->contador_vistas = $request->contador_vistas ?? 0;
+            $restaurante->user_id = auth()->id();
+            $restaurante->save();
+
+            $menu = new Menu();
+            $menu->restaurante_id = $restaurante->id;
+            $menu->save();
+
+            DB::commit();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear el restaurante'
+                'message' => 'Error al crear el restaurante o el menú',
+                'error' => $e->getMessage()
             ], 500);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Restaurante creado exitosamente',
-            'data' => $restaurante
+            'data' => [
+                'id' => $restaurante->id,
+                'nombre_restaurante' => $restaurante->nombre_restaurante,
+                'ubicacion' => $restaurante->ubicacion,
+                'celular' => $restaurante->celular,
+                'imagen' => url('storage/' . $restaurante->imagen),
+                'estado' => $restaurante->estado,
+                'tematica' => $restaurante->tematica,
+                'contador_vistas' => $restaurante->contador_vistas ?? 0,
+                'user_id' => $restaurante->user_id,
+                "created_at" => $restaurante->created_at->format("Y-m-d H:i:s"),
+            ],
         ], 201);
     }
 
@@ -118,12 +142,14 @@ class RestauranteController extends Controller
     {
         $user = auth()->user();
         $restaurante = Restaurante::find($id);
-        if(!$restaurante){
+
+        if (!$restaurante) {
             return response()->json([
                 'success' => false,
                 'message' => 'Restaurante no encontrado'
             ], 404);
         }
+
         if ($restaurante->user_id !== $user->id) {
             return response()->json([
                 'success' => false,
@@ -135,25 +161,34 @@ class RestauranteController extends Controller
             'nombre_restaurante' => 'sometimes|required|string|max:255',
             'ubicacion' => 'sometimes|required|string|max:255',
             'celular' => 'sometimes|required|string|max:15',
-            'imagen' => 'nullable',
+            'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'estado' => 'sometimes|required',
             'tematica' => 'sometimes|required|string|max:255',
-            'contador_vistas' => 'nullable|integer',
+            //'contador_vistas' => 'nullable|integer',
         ]);
 
-        if($validate->fails()) {
+        if ($validate->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
                 'errors' => $validate->errors()
             ], 422);
         }
+
         $atributosAEditar = [];
+
+        if ($request->hasFile('imagen')) {
+            if ($restaurante->imagen) {
+                Storage::delete($restaurante->imagen);
+            }
+            $path = Storage::disk('public')->putFile('restaurantes', $request->file('imagen'));
+            $atributosAEditar['imagen'] = $path;
+        }
+
         $campos = [
             'nombre_restaurante',
             'ubicacion',
             'celular',
-            'imagen',
             'estado',
             'tematica',
             'contador_vistas'
@@ -161,10 +196,7 @@ class RestauranteController extends Controller
 
         foreach ($campos as $campo) {
             if ($request->has($campo)) {
-                // Permitir valor null explícito para imagen
-                $atributosAEditar[$campo] = ($campo === 'imagen')
-                    ? $request->$campo ?? null
-                    : $request->$campo;
+                $atributosAEditar[$campo] = $request->input($campo);
             }
         }
 
@@ -175,13 +207,28 @@ class RestauranteController extends Controller
             ], 400);
         }
 
-        // Actualizar los campos enviados
-        $restaurante->update($atributosAEditar);
+        if (!$restaurante->update($atributosAEditar)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el restaurante'
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Restaurante editado correctamente',
-            'data' => $restaurante
+            'data' => [
+                'id' => $restaurante->id,
+                'nombre_restaurante' => $restaurante->nombre_restaurante,
+                'ubicacion' => $restaurante->ubicacion,
+                'celular' => $restaurante->celular,
+                'imagen' => url('storage/' . $restaurante->imagen),
+                'estado' => $restaurante->estado,
+                'tematica' => $restaurante->tematica,
+                'contador_vistas' => $restaurante->contador_vistas ?? 0,
+                'user_id' => $restaurante->user_id,
+                "created_at" => $restaurante->created_at->format("Y-m-d H:i:s"),
+            ],
         ], 200);
     }
 
