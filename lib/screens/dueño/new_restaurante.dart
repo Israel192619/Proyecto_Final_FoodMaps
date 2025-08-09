@@ -12,6 +12,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:cases/config/config.dart';
+import 'package:cases/screens/dueño/maps_due_activity.dart';
 
 
 class NewRestauranteScreen extends StatefulWidget {
@@ -43,6 +45,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
   @override
   void initState() {
     super.initState();
+    print('[VISTA NEWREST] INITSTATE');
     _obtenerUserId();
   }
 
@@ -197,9 +200,14 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
   }
 
   Future<void> _registrarRestaurante() async {
+    print('[VISTA NEWREST] INICIO _registrarRestaurante');
     if (_isLoading) return; // Evita doble pulsación
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      print('[VISTA NEWREST] Formulario no válido');
+      return;
+    }
     if (_userId == null) {
+      print('[VISTA NEWREST] No se pudo identificar al usuario');
       _mostrarError('No se pudo identificar al usuario');
       return;
     }
@@ -218,10 +226,17 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
 
     try {
       // Crear la solicitud multipart
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      print('[VISTA NEWREST] Token obtenido: $token');
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://tuapi.com/api/restaurantes'),
+        Uri.parse(AppConfig.getRegistrarRestauranteUrl()),
       );
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+        // NO agregues Content-Type aquí
+      }
 
       // Agregar campos de texto
       request.fields.addAll({
@@ -238,7 +253,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
       });
 
       // Agregar imagen si existe
-      if (_imageBytes != null && _imageName != null) {
+      if (_imageBytes != null && _imageName != null && _imageBytes!.isNotEmpty) {
         request.files.add(http.MultipartFile.fromBytes(
           'imagen',
           _imageBytes!,
@@ -246,37 +261,147 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
         ));
       }
 
+      print('[VISTA NEWREST] Campos enviados: ${request.fields}');
+      print('[VISTA NEWREST] Headers enviados: ${request.headers}');
+      print('[VISTA NEWREST] URL: ${AppConfig.getRegistrarRestauranteUrl()}');
+      print('[VISTA NEWREST] Tiene imagen: ${_imageBytes != null && _imageBytes!.isNotEmpty}');
+
       // Enviar la solicitud
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
-      final jsonResponse = jsonDecode(responseData);
+
+      print('[VISTA NEWREST] statusCode: ${response.statusCode}');
+      print('[VISTA NEWREST] responseData: $responseData');
+      print('[VISTA NEWREST] Content-Type recibido: ${response.headers['content-type']}');
 
       if (response.statusCode == 201) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('hasRestaurant', true); // Marcar que ya tiene restaurante
+        try {
+          final jsonResponse = jsonDecode(responseData);
+          print('[VISTA NEWREST] Restaurante creado exitosamente: $jsonResponse');
+          final prefs = await SharedPreferences.getInstance();
+          final restaurante = jsonResponse['data'];
+          final restauranteId = restaurante?['id'];
 
-        setState(() => _isSuccess = true);
-        _mostrarExito('Restaurante registrado exitosamente');
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) {
-          // Cerrar loader modal antes de navegar
-          Navigator.of(context, rootNavigator: true).pop();
-          Navigator.pushReplacementNamed(context, '/mapsDueActivity');
+          // Guarda los datos igual que en login
+          if (restauranteId != null) {
+            await prefs.setInt('restaurante_id', restauranteId);
+            await prefs.setString('restaurante_seleccionado', jsonEncode(restaurante));
+            await prefs.setBool('hasRestaurant', true);
+            await prefs.setBool('forcedLogout', false);
+            print('[VISTA NEWREST] Restaurante guardado en SharedPreferences');
+          }
+
+          // --- LOGIN AUTOMÁTICO ANTES DE REDIRIGIR AL AUTHWRAPPER ---
+          final username = prefs.getString('username');
+          final password = prefs.getString('password');
+          if (username != null && password != null) {
+            print('[VISTA NEWREST] Login automático después de registrar restaurante');
+            final apiUrl = AppConfig.getApiUrl(AppConfig.loginEndpoint);
+            final loginResponse = await http.post(
+              Uri.parse(apiUrl),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'username': username,
+                'password': password,
+              }),
+            );
+            print('[VISTA NEWREST] Respuesta login statusCode: ${loginResponse.statusCode}');
+            print('[VISTA NEWREST] Respuesta login body: ${loginResponse.body}');
+            if (loginResponse.statusCode == 200 || loginResponse.statusCode == 201 || loginResponse.statusCode == 202) {
+              final loginData = jsonDecode(loginResponse.body);
+              final token = loginData['access_token'];
+              final user = loginData['user'];
+              final roleId = user['role_id'];
+              final userId = user['id'];
+              await prefs.setString('auth_token', token);
+              await prefs.setInt('userRole', roleId);
+              await prefs.setInt('user_id', userId);
+              await prefs.setBool('forcedLogout', false);
+              print('[VISTA NEWREST] Login automático exitoso después de registrar restaurante');
+
+              // --- ACTUALIZA LA LISTA DE RESTAURANTES ---
+              var restaurantes = loginData['restaurantes'] ?? loginData['restaurante'];
+              List<dynamic> restaurantesList = [];
+              if (restaurantes is List) {
+                restaurantesList = restaurantes;
+              } else if (restaurantes is Map) {
+                restaurantesList = [restaurantes];
+              }
+              // Si el restaurante recién creado no está en la lista, lo agregamos
+              if (restauranteId != null && restaurantesList.every((r) => r['id'] != restauranteId)) {
+                restaurantesList.add(restaurante);
+              }
+              await prefs.setString('restaurantes', jsonEncode(restaurantesList));
+              print('[VISTA NEWREST] Restaurantes actualizados en SharedPreferences: $restaurantesList');
+            } else {
+              print('[VISTA NEWREST] Error en login automático después de registrar restaurante');
+            }
+          } else {
+            print('[VISTA NEWREST] No hay credenciales para login automático después de registrar restaurante');
+          }
+
+          setState(() => _isSuccess = true);
+          _mostrarExito('Restaurante registrado exitosamente');
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) {
+            // --- PRINT DETALLADO DE SHARED PREFERENCES ---
+            final prefs = await SharedPreferences.getInstance();
+            final token = prefs.getString('auth_token');
+            final username = prefs.getString('username');
+            final password = prefs.getString('password');
+            final userRole = prefs.getInt('userRole');
+            final userId = prefs.getInt('user_id');
+            final forcedLogout = prefs.getBool('forcedLogout');
+            final restauranteId = prefs.getInt('restaurante_id');
+            final restaurantes = prefs.getString('restaurantes');
+            final restauranteSeleccionado = prefs.getString('restaurante_seleccionado');
+            final hasRestaurant = prefs.getBool('hasRestaurant');
+            print('========== [VISTA NEWREST] [DEBUG SHARED PREFERENCES DESPUÉS DE REGISTRO RESTAURANTE] ==========');
+            print('auth_token: $token');
+            print('username: $username');
+            print('password: $password');
+            print('userRole: $userRole');
+            print('user_id: $userId');
+            print('forcedLogout: $forcedLogout');
+            print('restaurante_id: $restauranteId');
+            print('restaurantes: $restaurantes');
+            print('restaurante_seleccionado: $restauranteSeleccionado');
+            print('hasRestaurant: $hasRestaurant');
+            print('=======================================================================');
+
+            print('[VISTA NEWREST] [REDIR] Redirigiendo a AuthWrapper (/) después de registrar restaurante');
+            // Cierra el loader modal antes de redirigir
+            Navigator.of(context, rootNavigator: true).pop();
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/',
+              (route) => false,
+            );
+          }
+        } catch (e) {
+          print('[VISTA NEWREST] Error al decodificar respuesta: $e');
+          _mostrarError('Error al procesar respuesta del servidor');
         }
       } else {
-        throw Exception(jsonResponse['message'] ?? 'Error al registrar restaurante');
+        print('[VISTA NEWREST] ERROR AL REGISTRAR: statusCode=${response.statusCode}');
+        print('[VISTA NEWREST] Campos enviados en error: ${request.fields}');
+        print('[VISTA NEWREST] Headers enviados en error: ${request.headers}');
+        _mostrarError('Error al registrar restaurante: ${response.statusCode}\n${responseData}');
       }
     } on http.ClientException catch (e) {
+      print('[VISTA NEWREST] Error de conexión: ${e.message}');
       _mostrarError('Error de conexión: ${e.message}');
     } on TimeoutException {
+      print('[VISTA NEWREST] Tiempo de espera agotado');
       _mostrarError('Tiempo de espera agotado');
     } catch (e) {
-      _mostrarError('Error: ${e.toString()}');
+      print('[VISTA NEWREST] ErrorFORM: ${e.toString()}');
+      _mostrarError('ErrorFORM: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        // Cerrar loader modal si sigue abierto
-        Navigator.of(context, rootNavigator: true).pop();
+        // Elimina el pop aquí para evitar doble cierre del loader modal
+        // Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
@@ -303,124 +428,217 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth > 700;
+    final formMaxWidth = isWide ? 520.0 : screenWidth * 0.98;
+    final horizontalPadding = isWide ? 32.0 : 8.0;
+    final verticalPadding = isWide ? 40.0 : 16.0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Nuevo Restaurante'),
         centerTitle: true,
+        backgroundColor: Colors.red.shade700,
+        elevation: 4,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Sección para subir logo
-              GestureDetector(
-                onTap: _isLoading ? null : _seleccionarImagen,
-                child: Container(
-                  height: 200,
-                  width: 200,
-                  margin: const EdgeInsets.symmetric(vertical: 10),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.grey,
-                      width: 1,
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: formMaxWidth,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOut,
+                    child: Card(
+                      elevation: 12,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      color: Colors.white,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: isWide ? 40 : 24,
+                          horizontal: isWide ? 32 : 16,
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Título destacado
+                              Text(
+                                'Datos del Restaurante',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red.shade700,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              Divider(thickness: 1.5, color: Colors.red.shade100),
+                              const SizedBox(height: 18),
+                              // Sección para subir logo
+                              GestureDetector(
+                                onTap: _isLoading ? null : _seleccionarImagen,
+                                child: Container(
+                                  height: 180,
+                                  width: 180,
+                                  margin: const EdgeInsets.symmetric(vertical: 10),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.red.shade200,
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.red.shade50,
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: _imageBytes != null
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: Image.memory(
+                                            _imageBytes!,
+                                            fit: BoxFit.cover,
+                                            height: 180,
+                                            width: 180,
+                                          ),
+                                        )
+                                      : Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.add_a_photo, size: 48, color: Colors.red.shade400),
+                                            const SizedBox(height: 10),
+                                            Text('Subir logo del restaurante',
+                                                style: TextStyle(color: Colors.red.shade700)),
+                                            const Text('(Se redimensionará a 500x500 px)',
+                                                style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                              if (_imageName != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    'Logo preparado: 500x500 px',
+                                    style: const TextStyle(fontSize: 12, color: Colors.green),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              const SizedBox(height: 24),
+                              _buildTextField(
+                                controller: _nombreController,
+                                label: 'Nombre del Restaurante',
+                                icon: Icons.restaurant,
+                                validator: (value) => value!.isEmpty ? 'Ingrese el nombre' : null,
+                              ),
+                              const SizedBox(height: 18),
+                              // CAMPO UBICACIÓN COMO BOTÓN
+                              GestureDetector(
+                                onTap: _isLoading ? null : _seleccionarUbicacionEnMapa,
+                                child: AbsorbPointer(
+                                  child: _buildTextField(
+                                    controller: _ubicacionController,
+                                    label: 'Ubicación',
+                                    icon: Icons.location_on,
+                                    validator: (value) => value!.isEmpty ? 'Seleccione la ubicación' : null,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              _buildTextField(
+                                controller: _celularController,
+                                label: 'Celular',
+                                icon: Icons.phone,
+                                keyboardType: TextInputType.phone,
+                                validator: (value) => value!.isEmpty ? 'Ingrese un celular' : null,
+                              ),
+                              const SizedBox(height: 18),
+                              _buildTextField(
+                                controller: _tematicaController,
+                                label: 'Temática',
+                                icon: Icons.category,
+                                hintText: 'Ej: Comida rápida, Italiana, Vegetariana, etc.',
+                                validator: (value) => value!.isEmpty ? 'Ingrese la temática' : null,
+                              ),
+                              const SizedBox(height: 28),
+                              // Botón principal mejorado
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.check_circle, color: Colors.white),
+                                  label: const Text(
+                                    'REGISTRAR RESTAURANTE',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () async {
+                                          if (_isLoading) return;
+                                          await _registrarRestaurante();
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red.shade700,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    elevation: 8,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              // Botón de salir debajo del botón principal
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.exit_to_app, color: Colors.red),
+                                  label: const Text(
+                                    'SALIR SIN REGISTRAR',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                  onPressed: _isLoading ? null : _salirAlLogin,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    side: BorderSide(color: Colors.red.shade700, width: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  child: _imageBytes != null
-                      ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.memory(
-                      _imageBytes!,
-                      fit: BoxFit.cover,
-                      height: 200,
-                      width: 200,
-                    ),
-                  )
-                      : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.add_a_photo, size: 50),
-                      SizedBox(height: 10),
-                      Text('Subir logo del restaurante'),
-                      Text('(Se redimensionará a 500x500 px)',
-                          style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
                 ),
               ),
-              const SizedBox(height: 10),
-              if (_imageName != null)
-                Text(
-                  'Logo preparado: 500x500 px',
-                  style: const TextStyle(fontSize: 12, color: Colors.green),
-                  textAlign: TextAlign.center,
-                ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _nombreController,
-                label: 'Nombre del Restaurante',
-                icon: Icons.restaurant,
-                validator: (value) => value!.isEmpty ? 'Ingrese el nombre' : null,
-              ),
-              const SizedBox(height: 20),
-              // CAMPO UBICACIÓN COMO BOTÓN
-              GestureDetector(
-                onTap: _isLoading ? null : _seleccionarUbicacionEnMapa,
-                child: AbsorbPointer(
-                  child: _buildTextField(
-                    controller: _ubicacionController,
-                    label: 'Ubicación',
-                    icon: Icons.location_on,
-                    validator: (value) => value!.isEmpty ? 'Seleccione la ubicación' : null,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _celularController,
-                label: 'Celular',
-                icon: Icons.phone,
-                keyboardType: TextInputType.phone,
-                validator: (value) => value!.isEmpty ? 'Ingrese un celular' : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: _tematicaController,
-                label: 'Temática',
-                icon: Icons.category,
-                hintText: 'Ej: Comida rápida, Italiana, Vegetariana, etc.',
-                validator: (value) => value!.isEmpty ? 'Ingrese la temática' : null,
-              ),
-              const SizedBox(height: 30),
-              _buildSubmitButton(),
-              const SizedBox(height: 20),
-              // Botón de salir debajo del botón principal
-              OutlinedButton(
-                onPressed: _isLoading ? null : _salirAlLogin,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: Colors.red),
-                ),
-                child: const Text(
-                  'SALIR SIN REGISTRAR',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
   Future<void> _salirAlLogin() async {
@@ -442,8 +660,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     await prefs.remove('restaurantes');
 
     if (mounted) {
-      // Cerrar loader modal antes de navegar
       Navigator.of(context, rootNavigator: true).pop();
+      print('[VISTA NEWREST] [REDIR] Redirigiendo a LoginScreen desde botón salir');
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/login',
@@ -458,7 +676,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     required IconData icon,
     String? hintText,
     TextInputType? keyboardType,
-    required String? Function(String?)? validator,
+    required String? Function(String?) validator, // <-- Obligatorio, sin '?'
   }) {
     return TextFormField(
       controller: controller,
@@ -472,40 +690,6 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
       ),
       keyboardType: keyboardType,
       validator: validator,
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return ElevatedButton(
-      onPressed: _isLoading
-          ? null
-          : () async {
-              if (_isLoading) return;
-              await _registrarRestaurante();
-            },
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        backgroundColor: Colors.blueAccent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-      child: _isLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-          : const Text(
-              'REGISTRAR RESTAURANTE',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
     );
   }
 }
@@ -536,46 +720,96 @@ class _SeleccionarUbicacionMapaScreenState extends State<_SeleccionarUbicacionMa
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Seleccionar ubicación')),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: widget.initialPosition,
-          zoom: widget.initialZoom,
-        ),
-        onMapCreated: (controller) {
-          _controller = controller;
-        },
-        markers: _pickedLatLng != null
-            ? {
-                Marker(
-                  markerId: const MarkerId('picked'),
-                  position: _pickedLatLng!,
-                  draggable: true,
-                  onDragEnd: (pos) {
-                    setState(() {
-                      _pickedLatLng = pos;
-                    });
-                  },
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: widget.initialPosition,
+              zoom: widget.initialZoom,
+            ),
+            onMapCreated: (controller) {
+              _controller = controller;
+            },
+            markers: _pickedLatLng != null
+                ? {
+                    Marker(
+                      markerId: const MarkerId('picked'),
+                      position: _pickedLatLng!,
+                      draggable: true,
+                      onDragEnd: (pos) {
+                        setState(() {
+                          _pickedLatLng = pos;
+                        });
+                      },
+                    ),
+                  }
+                : {},
+            onTap: (latLng) {
+              setState(() {
+                _pickedLatLng = latLng;
+              });
+            },
+            onCameraMove: (position) {
+              _zoom = position.zoom;
+            },
+          ),
+          // Instrucciones arriba del mapa
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: Card(
+              color: Colors.white.withOpacity(0.95),
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                child: Row(
+                  children: const [
+                    Icon(Icons.info_outline, color: Colors.red),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Toca el mapa o arrastra el marcador para establecer la ubicación exacta de tu restaurante.',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
                 ),
-              }
-            : {},
-        onTap: (latLng) {
-          setState(() {
-            _pickedLatLng = latLng;
-          });
-        },
-        onCameraMove: (position) {
-          _zoom = position.zoom;
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _pickedLatLng != null
-            ? () => Navigator.pop(context, {
-                  'latlng': _pickedLatLng,
-                  'zoom': _zoom,
-                })
-            : null,
-        label: const Text('Seleccionar'),
-        icon: const Icon(Icons.check),
+              ),
+            ),
+          ),
+          // Botón "Seleccionar" centrado abajo, separado de los controles de zoom
+          Positioned(
+            bottom: 32,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 180,
+                child: ElevatedButton.icon(
+                  onPressed: _pickedLatLng != null
+                      ? () => Navigator.pop(context, {
+                            'latlng': _pickedLatLng,
+                            'zoom': _zoom,
+                          })
+                      : null,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Seleccionar ubicación'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    elevation: 8,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

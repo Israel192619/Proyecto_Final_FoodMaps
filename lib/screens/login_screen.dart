@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    print('[VISTA LOGIN] INITSTATE');
     _checkSavedCredentials();
   }
 
@@ -119,12 +120,41 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setInt('userRole', roleId);
         await prefs.setInt('user_id', userId);
 
-        // --- NUEVO: Manejo de múltiples restaurantes para DUEÑO ---
-        if (roleId == 2) { // Suponiendo que 2 es el rol de dueño
-          final restaurantes = data['restaurantes'] ?? data['restaurante'];
+        // --- NUEVO: Obtener restaurantes si no hay en SharedPreferences ---
+        if (roleId == 2) {
+          String? restaurantesPrefs = prefs.getString('restaurantes');
+          if (restaurantesPrefs == null || restaurantesPrefs.isEmpty) {
+            print('[VISTA LOGIN] No hay restaurantes en SharedPreferences, obteniendo desde API...');
+            final restaurantesUrl = '${AppConfig.apiBaseUrl}/api/restaurantes';
+            final restaurantesResp = await http.get(
+              Uri.parse(restaurantesUrl),
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
+            );
+            print('[VISTA LOGIN] GET /api/restaurantes status: ${restaurantesResp.statusCode}');
+            print('[VISTA LOGIN] GET /api/restaurantes body: ${restaurantesResp.body}');
+            if (restaurantesResp.statusCode == 200) {
+              final restaurantesData = jsonDecode(restaurantesResp.body);
+              List<dynamic> restaurantesList = [];
+              if (restaurantesData is Map && restaurantesData.containsKey('data')) {
+                restaurantesList = restaurantesData['data'] is List
+                  ? restaurantesData['data']
+                  : [];
+              }
+              await prefs.setString('restaurantes', jsonEncode(restaurantesList));
+              print('[VISTA LOGIN] Restaurantes guardados en SharedPreferences: $restaurantesList');
+            }
+          }
+        }
 
-          // PRINT de los datos obtenidos de restaurantes
-          print('[AUTHWRAPPER] Restaurantes obtenidos del backend: $restaurantes');
+        // --- Manejo de múltiples restaurantes para DUEÑO ---
+        if (roleId == 2) {
+          final restaurantes = prefs.getString('restaurantes') != null
+              ? jsonDecode(prefs.getString('restaurantes')!)
+              : data['restaurantes'] ?? data['restaurante'];
+          print('[VISTA LOGIN] Restaurantes obtenidos del backend o SharedPreferences: $restaurantes');
 
           // Guardar la lista de restaurantes SIEMPRE que existan (aunque sea uno solo)
           if (restaurantes is List && restaurantes.isNotEmpty) {
@@ -141,13 +171,21 @@ class _LoginScreenState extends State<LoginScreen> {
             if (savedRestId != null && restaurantes.any((r) => r['id'] == savedRestId)) {
               final selectedRest = restaurantes.firstWhere((r) => r['id'] == savedRestId);
               await prefs.setString('restaurante_seleccionado', jsonEncode(selectedRest));
-              Navigator.pushReplacementNamed(
+              Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/dueno_home',
+                (route) => false,
                 arguments: selectedRest,
               );
             } else {
               // Redirige a selector y guarda la selección
+              print('[VISTA LOGIN] [REDIR] Redirigiendo a /restaurante_selector');
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/restaurante_selector',
+                (route) => false,
+                arguments: restaurantes,
+              );
               final selected = await Navigator.pushNamed(
                 context,
                 '/restaurante_selector',
@@ -156,9 +194,10 @@ class _LoginScreenState extends State<LoginScreen> {
               if (selected != null && selected is Map && selected['id'] != null) {
                 await prefs.setInt('restaurante_id', selected['id']);
                 await prefs.setString('restaurante_seleccionado', jsonEncode(selected));
-                Navigator.pushReplacementNamed(
+                Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/dueno_home',
+                  (route) => false,
                   arguments: selected,
                 );
               }
@@ -167,18 +206,22 @@ class _LoginScreenState extends State<LoginScreen> {
           } else if (restaurantes is List && restaurantes.length == 1) {
             await prefs.setInt('restaurante_id', restaurantes[0]['id']);
             await prefs.setString('restaurante_seleccionado', jsonEncode(restaurantes[0]));
-            Navigator.pushReplacementNamed(
+            print('[VISTA LOGIN] [REDIR] Redirigiendo a /dueno_home con restaurante único');
+            Navigator.pushNamedAndRemoveUntil(
               context,
               '/dueno_home',
+              (route) => false,
               arguments: restaurantes[0],
             );
             return;
           } else if (restaurantes is Map) {
             await prefs.setInt('restaurante_id', restaurantes['id']);
             await prefs.setString('restaurante_seleccionado', jsonEncode(restaurantes));
-            Navigator.pushReplacementNamed(
+            print('[VISTA LOGIN] [REDIR] Redirigiendo a /dueno_home con restaurante único (Map)');
+            Navigator.pushNamedAndRemoveUntil(
               context,
               '/dueno_home',
+              (route) => false,
               arguments: restaurantes,
             );
             return;
@@ -190,12 +233,14 @@ class _LoginScreenState extends State<LoginScreen> {
         switch (response.statusCode) {
           case 200: // Cliente
             await prefs.setBool('hasRestaurant', true);
-            Navigator.pushReplacementNamed(context, '/home');
+            print('[VISTA LOGIN] [REDIR] Redirigiendo a /home');
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
             break;
 
           case 201: // Dueño sin restaurante
             await prefs.setBool('hasRestaurant', false);
-            Navigator.pushReplacementNamed(context, '/new_restaurante');
+            print('[VISTA LOGIN] [REDIR] Redirigiendo a /new_restaurante');
+            Navigator.pushNamedAndRemoveUntil(context, '/new_restaurante', (route) => false);
             break;
 
           case 202: // Dueño con restaurante
@@ -203,14 +248,17 @@ class _LoginScreenState extends State<LoginScreen> {
             await prefs.setBool('hasRestaurant', true);
             await prefs.setString('restaurante', jsonEncode(restaurante));
             await prefs.setInt('restaurante_id', restaurante['id']);
-            Navigator.pushReplacementNamed(
+            print('[VISTA LOGIN] [REDIR] Redirigiendo a /dueno_home con restaurante: $restaurante');
+            Navigator.pushNamedAndRemoveUntil(
               context,
               '/dueno_home',
+              (route) => false,
               arguments: restaurante,
             );
             break;
 
           default:
+            print('[VISTA LOGIN] [REDIR] Respuesta inesperada del servidor');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Respuesta inesperada del servidor')),
             );

@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 
 class RestaurantInfoWindow extends StatelessWidget {
   final Map<String, dynamic> restaurantData;
-  final VoidCallback onMenuPressed;
+  final VoidCallback? onMenuPressed;
 
   const RestaurantInfoWindow({
     Key? key,
     required this.restaurantData,
-    required this.onMenuPressed,
+    this.onMenuPressed,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 180,
-      height: 170,
+      height: 110,
       child: Card(
         elevation: 4,
         margin: EdgeInsets.zero,
+        color: Colors.grey[100], // Fondo gris claro para mejor contraste
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -26,35 +27,13 @@ class RestaurantInfoWindow extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(
-                flex: 3,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Image.network(
-                        restaurantData['imagen'],
-                        fit: BoxFit.scaleDown,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          child: Icon(Icons.restaurant, color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               Text(
-                restaurantData['nom_rest'],
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13),
+                restaurantData['nom_rest'] ?? restaurantData['nombre_restaurante'] ?? '',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.black, // Texto negro para contraste
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -62,7 +41,7 @@ class RestaurantInfoWindow extends StatelessWidget {
               SizedBox(
                 height: 32,
                 width: double.infinity,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
@@ -70,8 +49,9 @@ class RestaurantInfoWindow extends StatelessWidget {
                     ),
                     padding: EdgeInsets.zero,
                   ),
+                  icon: const Icon(Icons.restaurant_menu, size: 16, color: Colors.white),
+                  label: const Text('Ver menú', style: TextStyle(fontSize: 12, color: Colors.white)),
                   onPressed: onMenuPressed,
-                  child: Text('Ver menú', style: TextStyle(fontSize: 12)),
                 ),
               ),
             ],

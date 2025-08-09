@@ -47,14 +47,20 @@ class RestauranteSelectorScreen extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
                 onTap: () async {
+                  print('[VISTA SELECTOR] Tap en restaurante_selector: id=${restaurante['id']}');
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setInt('restaurante_id', restaurante['id']);
                   await prefs.setString('restaurante_seleccionado', jsonEncode(restaurante));
+                  print('[VISTA SELECTOR] Guardado en SharedPreferences: restaurante_id=${restaurante['id']}, restaurante_seleccionado=${jsonEncode(restaurante)}');
+                  final token = prefs.getString('auth_token');
+                  print('[VISTA SELECTOR] Token actual en SharedPreferences: $token');
+                  print('[VISTA SELECTOR] [REDIR] Redirigiendo a /dueno_home desde restaurante_selector');
                   Navigator.pushReplacementNamed(
                     context,
                     '/dueno_home',
                     arguments: restaurante,
                   );
+                  print('[VISTA SELECTOR] Redirigido a /dueno_home con restaurante: $restaurante');
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(18.0),

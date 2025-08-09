@@ -22,6 +22,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
   bool _loading = false;
   String? _selectedRol;
 
+  @override
+  void initState() {
+    super.initState();
+    print('[VISTA REGISTRO] INITSTATE');
+  }
+
   Future<void> _registrar() async {
     if (_loading) return; // Evita doble pulsación
     if (_formKey.currentState!.validate()) {
@@ -38,6 +44,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
           rolBackend = 'Dueño';
         }
 
+        print('[VISTA REGISTRO] Enviando registro a $apiUrl');
+        print('[VISTA REGISTRO] Datos enviados: username=${_usernameController.text.trim()}, celular=${_celularController.text.trim()}, email=${_emailController.text.trim()}, rol=$rolBackend');
+
         final response = await http.post(
           Uri.parse(apiUrl),
           headers: {'Content-Type': 'application/json'},
@@ -51,12 +60,23 @@ class _RegistroScreenState extends State<RegistroScreen> {
           }),
         );
 
+        print('[VISTA REGISTRO] Respuesta registro statusCode: ${response.statusCode}');
+        print('[VISTA REGISTRO] Respuesta registro body: ${response.body}');
+
         if (response.statusCode == 200 || response.statusCode == 201) {
           final data = jsonDecode(response.body);
+          print('[VISTA REGISTRO] Registro exitoso, data: $data');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Registro exitoso, iniciando sesión...')),
+            SnackBar(content: Text('Registro exitoso')),
           );
+          // Guardar credenciales en SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('username', _usernameController.text.trim());
+          await prefs.setString('password', _pass1Controller.text.trim());
+          await prefs.setBool('mantenersesion', true);
+
           // Login automático después del registro exitoso
+          print('[VISTA REGISTRO] Login automático después de registro');
           await _loginAfterRegister(
             _usernameController.text.trim(),
             _pass1Controller.text.trim(),
@@ -65,6 +85,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           String msg = 'Error: ${response.statusCode}';
           try {
             final data = jsonDecode(response.body);
+            print('[VISTA REGISTRO] Error en registro, data: $data');
             if (data is Map && data['message'] != null) {
               msg = data['message'].toString();
             }
@@ -74,6 +95,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
           );
         }
       } catch (e) {
+        print('[VISTA REGISTRO] Error de conexión en registro: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error de conexión')),
         );
@@ -86,6 +108,9 @@ class _RegistroScreenState extends State<RegistroScreen> {
   Future<void> _loginAfterRegister(String username, String password) async {
     final String apiUrl = AppConfig.getApiUrl(AppConfig.loginEndpoint);
 
+    print('[VISTA REGISTRO] Login automático post-registro a $apiUrl');
+    print('[VISTA REGISTRO] Credenciales usadas: username=$username, password=$password');
+
     try {
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -96,8 +121,12 @@ class _RegistroScreenState extends State<RegistroScreen> {
         }),
       );
 
+      print('[VISTA REGISTRO] Respuesta login statusCode: ${response.statusCode}');
+      print('[VISTA REGISTRO] Respuesta login body: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
         final data = jsonDecode(response.body);
+        print('[VISTA REGISTRO] Login exitoso, data: $data');
         final token = data['access_token'];
         final user = data['user'];
         final roleId = user['role_id'];
@@ -111,19 +140,22 @@ class _RegistroScreenState extends State<RegistroScreen> {
         await prefs.setBool('mantenersesion', true);
         await prefs.setInt('userRole', roleId);
         await prefs.setInt('user_id', userId); // <-- Guardar el id
+        await prefs.setBool('forcedLogout', false); // <-- LIMPIA EL FLAG AQUÍ
 
         // Manejar diferentes respuestas del servidor
         switch (response.statusCode) {
           case 200: // Cliente
             await prefs.setBool('hasRestaurant', true);
             if (mounted) {
-              Navigator.pushReplacementNamed(context, '/home');
+              print('[VISTA REGISTRO] [REDIR] Redirigiendo a /home');
+              Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
             }
             break;
           case 201: // Dueño sin restaurante
             await prefs.setBool('hasRestaurant', false);
             if (mounted) {
-              Navigator.pushReplacementNamed(context, '/new_restaurante');
+              print('[VISTA REGISTRO] [REDIR] Redirigiendo a /new_restaurante');
+              Navigator.pushNamedAndRemoveUntil(context, '/new_restaurante', (route) => false);
             }
             break;
           case 202: // Dueño con restaurante
@@ -131,27 +163,32 @@ class _RegistroScreenState extends State<RegistroScreen> {
             await prefs.setBool('hasRestaurant', true);
             await prefs.setString('restaurante', jsonEncode(restaurante));
             if (mounted) {
-              Navigator.pushReplacementNamed(
+              print('[VISTA REGISTRO] [REDIR] Redirigiendo a /dueno_home con restaurante: $restaurante');
+              Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/dueno_home',
+                (route) => false,
                 arguments: restaurante,
               );
             }
             break;
           default:
             if (mounted) {
+              print('[VISTA REGISTRO] [REDIR] Respuesta inesperada del servidor en login');
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Respuesta inesperada del servidor')),
               );
             }
         }
       } else if (response.statusCode == 401) {
+        print('[VISTA REGISTRO] Credenciales inválidas en login');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Credenciales inválidas')),
           );
         }
       } else {
+        print('[VISTA REGISTRO] Error del servidor en login: ${response.statusCode}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error del servidor: ${response.statusCode}')),
@@ -159,6 +196,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         }
       }
     } catch (e) {
+      print('[VISTA REGISTRO] Error de conexión en login: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error de conexión: ${e.toString()}')),

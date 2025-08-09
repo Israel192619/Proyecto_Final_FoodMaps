@@ -149,19 +149,30 @@ class _MapsDuePageState extends State<MapsDuePage> {
         _restauranteMarker = Marker(
           markerId: MarkerId(widget.restauranteId.toString()),
           position: latLng,
-          infoWindow: InfoWindow(title: nombre),
+          // Cambia aquí para ocultar el InfoWindow nativo:
+          infoWindow: InfoWindow.noText,
           icon: _restauranteStatus == 1
               ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
               : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           onTap: () {
-            print('[MARCADOR] onTap del marcador');
+            print('[window] Datos del restaurante principal al abrir ventana: $restauranteData');
+            final imagenSafe = (restauranteData?['imagen'] ?? '').toString();
+            print('[window] Valor seguro para imagen: $imagenSafe, tipo: ${imagenSafe.runtimeType}');
+            if (restauranteData?['nombre_restaurante'] == null) print('[window] nombre_restaurante es null');
+            if (restauranteData?['imagen'] == null) print('[window] imagen es null');
+            if (restauranteData?['ubicacion'] == null) print('[window] ubicacion es null');
+            if (restauranteData?['celular'] == null) print('[window] celular es null');
+            if (restauranteData?['estado_text'] == null) print('[window] estado_text es null');
             if (_customController != null) {
               _customController!.showInfoWindow(
                 [
                   RestaurantInfoWindow(
-                    restaurantData: restauranteData ?? {},
+                    restaurantData: {
+                      ...(restauranteData ?? {}),
+                      'imagen': imagenSafe, // Siempre String, nunca null
+                    },
                     onMenuPressed: () {
-                      print('[MARCADOR] Ver menú de restaurante: $nombre');
+                      print('[window] Ver menú de restaurante: $nombre');
                     },
                   )
                 ],
@@ -243,8 +254,29 @@ class _MapsDuePageState extends State<MapsDuePage> {
             Marker(
               markerId: markerId,
               position: position,
+              // Cambia aquí para ocultar el InfoWindow nativo:
+              infoWindow: InfoWindow.noText,
               icon: icon,
-              infoWindow: InfoWindow(title: obj['nombre_restaurante'] ?? ''),
+              onTap: () {
+                print('[window] Datos del restaurante al abrir ventana: $obj');
+                final imagenSafe = (obj['imagen'] ?? '').toString();
+                print('[window] Valor seguro para imagen: $imagenSafe, tipo: ${imagenSafe.runtimeType}');
+                if (obj['nombre_restaurante'] == null) print('[window] nombre_restaurante es null');
+                if (obj['imagen'] == null) print('[window] imagen es null');
+                if (obj['ubicacion'] == null) print('[window] ubicacion es null');
+                if (obj['celular'] == null) print('[window] celular es null');
+                if (obj['estado_text'] == null) print('[window] estado_text es null');
+                final infoWidget = RestaurantInfoWindow(
+                  restaurantData: {
+                    ...obj,
+                    'imagen': imagenSafe, // Siempre String, nunca null
+                  },
+                  onMenuPressed: () {
+                    print('[window] Ver menú de restaurante: ${obj['nombre_restaurante']}');
+                  },
+                );
+                _customController?.showInfoWindow([infoWidget], [position]);
+              },
             ),
           );
         }
@@ -275,7 +307,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
     }
   }
 
-  // Método público para actualizar el estado y el marcador desde fuera
+  // Metodo público para actualizar el estado y el marcador desde fuera
   void actualizarEstadoRestaurante(int nuevoEstado) {
     print('[MARCADOR] actualizarEstadoRestaurante llamado con estado: $nuevoEstado');
     setState(() {
@@ -356,7 +388,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
         );
         _allMarkers.add(nuevoMarcador);
         print('[MARCADOR] Marcador actualizado en _allMarkers para id=$id');
-        // Elimina la línea que fuerza el redibujado de todo el mapa:
+        // Elimina la línea que fuerza el redibujado de todoo el mapa:
         // _mapKey = UniqueKey();
       } else {
         print('[MARCADOR] No se encontró marcador para id=$id');

@@ -111,6 +111,7 @@ class SettingsDuenoPage extends StatelessWidget {
                             final restaurantesJson = prefs.getString('restaurantes');
                             if (restaurantesJson != null) {
                               final restaurantes = List<Map<String, dynamic>>.from(jsonDecode(restaurantesJson));
+                              print('[VISTA SETTINGS] [REDIR] Redirigiendo a /restaurante_selector desde settings');
                               final selected = await Navigator.pushNamed(
                                 context,
                                 '/restaurante_selector',
@@ -119,6 +120,7 @@ class SettingsDuenoPage extends StatelessWidget {
                               if (selected != null && selected is Map && selected['id'] != null) {
                                 await prefs.setInt('restaurante_id', selected['id']);
                                 await prefs.setString('restaurante_seleccionado', jsonEncode(selected));
+                                print('[VISTA SETTINGS] [REDIR] Redirigiendo a /dueno_home con restaurante seleccionado desde settings');
                                 Navigator.pushReplacementNamed(
                                   context,
                                   '/dueno_home',
@@ -227,5 +229,6 @@ class SettingsDuenoPage extends StatelessWidget {
     // Cerrar loader modal
     Navigator.of(context, rootNavigator: true).pop();
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    print('[VISTA SETTINGS] [REDIR] Redirigiendo a LoginScreen desde cerrar sesión en settings');
   }
 }

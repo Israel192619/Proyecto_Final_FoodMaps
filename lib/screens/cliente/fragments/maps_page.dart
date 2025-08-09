@@ -414,8 +414,9 @@ class MapsDesktopTable extends StatelessWidget {
                                             Padding(
                                               padding: const EdgeInsets.symmetric(vertical: 8.0),
                                               child: ElevatedButton.icon(
-                                                // Siempre habilitado si onMenuPressed existe
-                                                onPressed: () => onMenuPressed?.call(rest),
+                                                onPressed: onMenuPressed != null
+                                                    ? () => onMenuPressed!(rest)
+                                                    : null,
                                                 icon: const Icon(Icons.restaurant_menu, size: 18),
                                                 label: const Text('Ver Menú'),
                                                 style: ElevatedButton.styleFrom(

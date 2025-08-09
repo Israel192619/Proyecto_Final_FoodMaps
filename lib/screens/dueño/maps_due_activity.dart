@@ -245,7 +245,7 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
       final id = parsed['id'];
       final estado = parsed['estado'];
       print('[WSO] Actualizando estado desde WebSocket para restaurante_id=$id, estado=$estado');
-      // --- CAMBIO: Llama directamente al método de actualización ---
+      // --- CAMBIO: Llama directamente al metodo de actualización ---
       if (_mapsDuePageKey.currentState != null) {
         final dynamic state = _mapsDuePageKey.currentState;
         if (state != null && state.actualizarMarcadorRestaurantePorId != null) {
@@ -352,7 +352,25 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
 
   @override
   Widget build(BuildContext context) {
-    print('[BUILD] Rebuild de MapsDueActivity. Estado actual: $_restauranteStatus');
+    print('[VISTA MAPSDUE] build MapsDueActivity restauranteId=${widget.restauranteId}');
+    print('[VISTA MAPSDUE] Estado actual: _restauranteStatus=$_restauranteStatus');
+    SharedPreferences.getInstance().then((prefs) {
+      final token = prefs.getString('auth_token');
+      final restauranteId = prefs.getInt('restaurante_id');
+      final restaurantes = prefs.getString('restaurantes');
+      final restauranteSeleccionado = prefs.getString('restaurante_seleccionado');
+      print('[VISTA MAPSDUE] SharedPreferences token: $token, restaurante_id: $restauranteId');
+      print('[VISTA MAPSDUE] SharedPreferences restaurantes: $restaurantes');
+      print('[VISTA MAPSDUE] SharedPreferences restaurante_seleccionado: $restauranteSeleccionado');
+      if (token == null || token.isEmpty) {
+        print('[VISTA MAPSDUE] No hay token, redirigiendo a login desde MapsDueActivity');
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      } else if (restauranteId == null) {
+        print('[VISTA MAPSDUE] No hay restaurante_id, redirigiendo a login desde MapsDueActivity');
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
+    });
+    print('[VISTA MAPSDUE] Rebuild de MapsDueActivity. Estado actual: $_restauranteStatus');
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(

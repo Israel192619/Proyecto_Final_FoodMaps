@@ -48,6 +48,15 @@ class AppConfig {
     return ruta;
   }
 
+  // Endpoint para registrar restaurante (dueño)
+  static const String registrarRestauranteEndpoint = '/restaurantes';
+
+  static String getRegistrarRestauranteUrl() {
+    final ruta = '$apiBaseUrl$registrarRestauranteEndpoint';
+    print('[WSO][RUTA] getRegistrarRestauranteUrl: $ruta');
+    return ruta;
+  }
+
   static String getApiUrl(String endpoint) {
     final ruta = '$apiBaseUrl$endpoint';
     print('[WSO][RUTA] getApiUrl: $ruta');

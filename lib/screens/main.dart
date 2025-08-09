@@ -34,41 +34,41 @@ class MyApp extends StatelessWidget {
           darkTheme: darkTheme,
           themeMode: themeProvider.themeMode,
           initialRoute: '/',
-          routes: {
-            '/': (context) => const AuthWrapper(),
-            '/home': (context) => const AuthWrapper(),
-            '/register': (context) => const RegistroScreen(),
-            '/login': (context) => const LoginScreen(),
-            '/mapsCliActivity': (context) => const MapsCliActivity(),
-            '/mapsDueActivity': (context) => const MapsDueActivity(restauranteId: 0),
-            '/new_restaurante': (context) => const NewRestauranteScreen(),
-          },
           onGenerateRoute: (settings) {
-            if (settings.name == '/dueno_home') {
-              final restaurante = settings.arguments;
-              int restauranteId = 0;
-              if (restaurante is Map && restaurante['restaurante_id'] != null) {
-                restauranteId = restaurante['restaurante_id'] is int
-                    ? restaurante['restaurante_id']
-                    : int.tryParse(restaurante['restaurante_id'].toString()) ?? 0;
-              } else if (restaurante is Map && restaurante['id'] != null) {
-                restauranteId = restaurante['id'] is int
-                    ? restaurante['id']
-                    : int.tryParse(restaurante['id'].toString()) ?? 0;
-              }
-              return MaterialPageRoute(
-                builder: (context) => MapsDueActivity(restauranteId: restauranteId),
-                settings: settings,
-              );
+            switch (settings.name) {
+              case '/':
+                return MaterialPageRoute(builder: (_) => const AuthWrapper());
+              case '/login':
+                return MaterialPageRoute(builder: (_) => const LoginScreen());
+              case '/register':
+                return MaterialPageRoute(builder: (_) => const RegistroScreen());
+              case '/new_restaurante':
+                return MaterialPageRoute(builder: (_) => const NewRestauranteScreen());
+              case '/restaurante_selector':
+                final restaurantes = settings.arguments as List;
+                return MaterialPageRoute(
+                  builder: (_) => RestauranteSelectorScreen(restaurantes: restaurantes),
+                );
+              case '/dueno_home':
+                final restaurante = settings.arguments;
+                int restauranteId = 0;
+                if (restaurante is Map && restaurante['id'] != null) {
+                  restauranteId = restaurante['id'] is int
+                      ? restaurante['id']
+                      : int.tryParse(restaurante['id'].toString()) ?? 0;
+                }
+                return MaterialPageRoute(
+                  builder: (_) => MapsDueActivity(restauranteId: restauranteId),
+                );
+              case '/mapsCliActivity':
+                return MaterialPageRoute(builder: (_) => const MapsCliActivity());
+              default:
+                return MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    body: Center(child: Text('Ruta no encontrada: \'${settings.name}\'')),
+                  ),
+                );
             }
-            if (settings.name == '/restaurante_selector') {
-              final restaurantes = settings.arguments as List;
-              return MaterialPageRoute(
-                builder: (context) => RestauranteSelectorScreen(restaurantes: restaurantes),
-                settings: settings,
-              );
-            }
-            return null;
           },
         );
       },
@@ -79,92 +79,7 @@ class MyApp extends StatelessWidget {
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _checkAuthAndRestaurantStatus(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          print('[AUTHWRAPPER] Esperando datos de autenticación...');
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final authData = snapshot.data ?? {};
-        final isAuthenticated = authData['authenticated'] ?? false;
-        final keepSession = authData['keepSession'] ?? false;
-        final hasCredentials = authData['hasCredentials'] ?? false;
-        final userRole = authData['userRole'] ?? 1;
-        final forcedLogout = authData['forcedLogout'] ?? false;
-        final restaurantes = authData['restaurantes'] ?? [];
-        final restauranteId = authData['restauranteId'];
-        final restauranteSeleccionado = authData['restauranteSeleccionado'];
-
-        print('[AUTHWRAPPER] Datos: '
-            'isAuthenticated=$isAuthenticated, keepSession=$keepSession, hasCredentials=$hasCredentials, '
-            'userRole=$userRole, forcedLogout=$forcedLogout, restauranteId=$restauranteId, restaurantes=$restaurantes, restauranteSeleccionado=$restauranteSeleccionado');
-
-        if (forcedLogout) {
-          print('[AUTHWRAPPER] Redirigiendo a LoginScreen por forcedLogout');
-          return const LoginScreen();
-        }
-
-        if (!isAuthenticated || (!keepSession && !hasCredentials)) {
-          print('[AUTHWRAPPER] Redirigiendo a LoginScreen por no autenticado o sin credenciales');
-          return const LoginScreen();
-        }
-
-        // --- Lógica para dueño ---
-        if (userRole == 2) {
-          print('[AUTHWRAPPER] [DUEÑO] Entrando a lógica de dueño');
-          Map<String, dynamic>? restauranteSeleccionadoLista;
-          print('[AUTHWRAPPER] [DUEÑO] restaurantes: $restaurantes');
-          print('[AUTHWRAPPER] [DUEÑO] restauranteId: $restauranteId');
-          print('[AUTHWRAPPER] [DUEÑO] restauranteSeleccionado: $restauranteSeleccionado');
-          if (restaurantes is List && restaurantes.isNotEmpty && restauranteId != null) {
-            try {
-              restauranteSeleccionadoLista = restaurantes.firstWhere(
-                (r) => r['id'] == restauranteId,
-                orElse: () {
-                  print('[AUTHWRAPPER] [DUEÑO] orElse de firstWhere ejecutado');
-                  return <String, dynamic>{};
-                },
-              );
-              print('[AUTHWRAPPER] [DUEÑO] restauranteSeleccionadoLista: $restauranteSeleccionadoLista');
-              if (restauranteSeleccionadoLista != null && restauranteSeleccionadoLista.isNotEmpty) {
-                print('[AUTHWRAPPER] Dueño: restaurante seleccionado encontrado en lista, id=$restauranteId');
-                return MapsDueActivity(restauranteId: restauranteId);
-              }
-            } catch (e) {
-              print('[AUTHWRAPPER] [DUEÑO] Excepción en firstWhere: $e');
-              restauranteSeleccionadoLista = null;
-            }
-            if (restauranteSeleccionado != null && restauranteSeleccionado['id'] == restauranteId) {
-              print('[AUTHWRAPPER] Dueño: restaurante seleccionado solo en SharedPreferences, id=$restauranteId');
-              return MapsDueActivity(restauranteId: restauranteId);
-            } else {
-              print('[AUTHWRAPPER] Dueño: restauranteId $restauranteId no está en la lista ni en prefs');
-            }
-          }
-          if (restaurantes is List && restaurantes.length > 1 && restauranteId == null) {
-            print('[AUTHWRAPPER] Dueño: varios restaurantes y ninguno seleccionado, mostrando selector');
-            return RestauranteSelectorScreen(restaurantes: restaurantes);
-          }
-          if (restaurantes is List && restaurantes.length == 1) {
-            print('[AUTHWRAPPER] Dueño: solo un restaurante, id=${restaurantes[0]['id']}');
-            return MapsDueActivity(restauranteId: restaurantes[0]['id']);
-          }
-          print('[AUTHWRAPPER] Dueño: no tiene restaurantes, mostrando NewRestauranteScreen');
-          return const NewRestauranteScreen();
-        }
-        print('[AUTHWRAPPER] Cliente: mostrando MapsCliActivity');
-        return const MapsCliActivity();
-      },
-    );
-  }
-
-  Future<Map<String, dynamic>> _checkAuthAndRestaurantStatus() async {
+  Future<Map<String, dynamic>> _getAuthState() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     final keepSession = prefs.getBool('mantenersesion') ?? false;
@@ -172,113 +87,87 @@ class AuthWrapper extends StatelessWidget {
     final password = prefs.getString('password');
     final userRole = prefs.getInt('userRole') ?? 1;
     final forcedLogout = prefs.getBool('forcedLogout') ?? false;
-    int? restauranteId = prefs.getInt('restaurante_id');
-
-    print('[AUTHWRAPPER] [CHECK_AUTH] token=$token, keepSession=$keepSession, username=$username, '
-        'userRole=$userRole, forcedLogout=$forcedLogout, restauranteId=$restauranteId');
-
-    if (forcedLogout) {
-      await prefs.setBool('forcedLogout', false);
-      print('[AUTHWRAPPER] [CHECK_AUTH] forcedLogout detectado, limpiando flag');
-    }
-
-    if (token == null || token.isEmpty) {
-      print('[AUTHWRAPPER] [CHECK_AUTH] No hay token, usuario no autenticado');
-      return {
-        'authenticated': false,
-        'keepSession': keepSession,
-        'hasCredentials': username != null && password != null,
-        'userRole': userRole,
-        'hasRestaurant': false,
-        'forcedLogout': forcedLogout,
-      };
-    }
-
+    final restauranteId = prefs.getInt('restaurante_id');
+    final restaurantesJson = prefs.getString('restaurantes');
     List restaurantes = [];
-    Map<String, dynamic>? restauranteSeleccionado;
-    if (userRole == 2) {
-      bool backendOk = false;
+    if (restaurantesJson != null && restaurantesJson.isNotEmpty) {
       try {
-        final response = await http.get(
-          Uri.parse('https://tuapi.com/api/restaurantes/verificar'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        );
-
-        print('[AUTHWRAPPER] [CHECK_AUTH] Respuesta backend restaurantes/verificar: status=${response.statusCode}, body=${response.body}');
-
-        if (response.statusCode == 200) {
-          try {
-            final data = jsonDecode(response.body);
-            restaurantes = data['restaurantes'] ?? [];
-            print('[AUTHWRAPPER] [CHECK_AUTH] Restaurantes obtenidos del backend: $restaurantes');
-            backendOk = true;
-          } catch (e) {
-            print('[AUTHWRAPPER] [CHECK_AUTH] Error al decodificar JSON del backend: $e');
-          }
-        }
-      } catch (e) {
-        print('[AUTHWRAPPER] [CHECK_AUTH] Excepción al verificar restaurante: $e');
-      }
-
-      if (!backendOk || restaurantes.isEmpty) {
-        final restaurantesJson = prefs.getString('restaurantes');
-        print('[AUTHWRAPPER] [CHECK_AUTH] Restaurantes backend vacíos o error, buscando en SharedPreferences...');
-        if (restaurantesJson != null && restaurantesJson.isNotEmpty) {
-          try {
-            restaurantes = List<Map<String, dynamic>>.from(jsonDecode(restaurantesJson));
-            print('[AUTHWRAPPER] [CHECK_AUTH] Restaurantes recuperados de SharedPreferences: $restaurantes');
-          } catch (e) {
-            print('[AUTHWRAPPER] [CHECK_AUTH] Error al decodificar restaurantes de SharedPreferences: $e');
-          }
-        } else {
-          print('[AUTHWRAPPER] [CHECK_AUTH] No hay restaurantes guardados en SharedPreferences');
-        }
-      }
-
-      if (restauranteId != null) {
-        final restauranteSelJson = prefs.getString('restaurante_seleccionado');
-        print('[AUTHWRAPPER] [CHECK_AUTH] Buscando restaurante_seleccionado en SharedPreferences...');
-        if (restauranteSelJson != null && restauranteSelJson.isNotEmpty) {
-          try {
-            restauranteSeleccionado = jsonDecode(restauranteSelJson);
-            print('[AUTHWRAPPER] [CHECK_AUTH] Restaurante seleccionado recuperado de SharedPreferences: $restauranteSeleccionado');
-          } catch (e) {
-            print('[AUTHWRAPPER] [CHECK_AUTH] Error al decodificar restaurante_seleccionado: $e');
-          }
-        } else {
-          print('[AUTHWRAPPER] [CHECK_AUTH] No hay restaurante_seleccionado guardado en SharedPreferences');
-        }
-      }
-
-      if (restauranteId != null &&
-          !(restaurantes.any((r) => r['id'] == restauranteId))) {
-        print('[AUTHWRAPPER] [CHECK_AUTH] restaurante_id guardado ($restauranteId) no existe en la lista, eliminando');
-        restauranteId = null;
-        await prefs.remove('restaurante_id');
-      }
-      print('[AUTHWRAPPER] [CHECK_AUTH] Dueño autenticado, restaurantes=$restaurantes, restauranteId=$restauranteId, restauranteSeleccionado=$restauranteSeleccionado');
-      return {
-        'authenticated': true,
-        'keepSession': keepSession,
-        'hasCredentials': username != null && password != null,
-        'userRole': userRole,
-        'forcedLogout': forcedLogout,
-        'restaurantes': restaurantes,
-        'restauranteId': restauranteId,
-        'restauranteSeleccionado': restauranteSeleccionado,
-      };
+        restaurantes = List<Map<String, dynamic>>.from(jsonDecode(restaurantesJson));
+      } catch (_) {}
     }
-
-    print('[AUTHWRAPPER] [CHECK_AUTH] Usuario no dueño o error, autenticado=${token != null && token.isNotEmpty}');
     return {
-      'authenticated': token != null && token.isNotEmpty,
+      'token': token,
       'keepSession': keepSession,
-      'hasCredentials': username != null && password != null,
+      'username': username,
+      'password': password,
       'userRole': userRole,
       'forcedLogout': forcedLogout,
+      'restauranteId': restauranteId,
+      'restaurantes': restaurantes,
     };
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getAuthState(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          // Si el FutureBuilder no tiene datos, muestra un loader
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final auth = snapshot.data!;
+        final token = auth['token'];
+        final keepSession = auth['keepSession'];
+        final username = auth['username'];
+        final password = auth['password'];
+        final userRole = auth['userRole'];
+        final forcedLogout = auth['forcedLogout'];
+        final restauranteId = auth['restauranteId'];
+        final restaurantes = auth['restaurantes'];
+
+        // --- Lógica de navegación robusta ---
+        if (forcedLogout) {
+          print('[VISTA AUTHWRAPPER] forcedLogout, mostrando LoginScreen');
+          print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a LoginScreen por forcedLogout');
+          return const LoginScreen();
+        }
+        if (token == null || token.isEmpty || (!keepSession && (username == null || password == null))) {
+          print('[VISTA AUTHWRAPPER] No autenticado, mostrando LoginScreen');
+          print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a LoginScreen por no autenticado');
+          return const LoginScreen();
+        }
+        if (userRole == 2) {
+          // Dueño
+          if (restaurantes.isEmpty) {
+            print('[VISTA AUTHWRAPPER] Dueño sin restaurantes, mostrando NewRestauranteScreen');
+            print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a NewRestauranteScreen por dueño sin restaurantes');
+            return const NewRestauranteScreen();
+          }
+          if (restaurantes.length > 1 && (restauranteId == null || restauranteId == 0)) {
+            print('[VISTA AUTHWRAPPER] Dueño con varios restaurantes, mostrando selector');
+            print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a RestauranteSelectorScreen por dueño con varios restaurantes');
+            return RestauranteSelectorScreen(restaurantes: restaurantes);
+          }
+          // Si solo hay uno o ya hay uno seleccionado
+          final selectedRestId = restauranteId ?? (restaurantes.isNotEmpty ? restaurantes[0]['id'] : null);
+          if (selectedRestId != null && selectedRestId != 0) {
+            print('[VISTA AUTHWRAPPER] Dueño con restaurante seleccionado, mostrando MapsDueActivity');
+            print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a MapsDueActivity por dueño con restaurante seleccionado');
+            return MapsDueActivity(restauranteId: selectedRestId);
+          }
+        }
+        // Cliente
+        print('[VISTA AUTHWRAPPER] Cliente autenticado, mostrando MapsCliActivity');
+        print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a MapsCliActivity por cliente autenticado');
+        return const MapsCliActivity();
+      },
+    );
+  }
 }
+
+// Recomendación: Navega entre vistas principales usando pushReplacementNamed o pushNamedAndRemoveUntil
+// para evitar que se apilen LoginScreen, RegistroScreen y NewRestauranteScreen en el stack.
+// Ejemplo:
+// Navigator.pushReplacementNamed(context, '/login');
+// Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
