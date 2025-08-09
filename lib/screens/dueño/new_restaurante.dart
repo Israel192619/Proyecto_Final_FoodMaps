@@ -14,6 +14,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:cases/config/config.dart';
 import 'package:cases/screens/dueño/maps_due_activity.dart';
+import 'package:provider/provider.dart';
+import 'package:cases/config/theme_provider.dart';
 
 
 class NewRestauranteScreen extends StatefulWidget {
@@ -433,12 +435,14 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     final formMaxWidth = isWide ? 520.0 : screenWidth * 0.98;
     final horizontalPadding = isWide ? 32.0 : 8.0;
     final verticalPadding = isWide ? 40.0 : 16.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Nuevo Restaurante'),
         centerTitle: true,
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: isDark ? Colors.black : Colors.red.shade700,
         elevation: 4,
       ),
       body: _isLoading
@@ -461,7 +465,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      color: Colors.white,
+                      color: isDark ? Colors.grey[900] : Colors.white,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
                           vertical: isWide ? 40 : 24,
@@ -472,20 +476,18 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Título destacado
                               Text(
                                 'Datos del Restaurante',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.red.shade700,
+                                  color: isDark ? Colors.white : Colors.red.shade700,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 12),
-                              Divider(thickness: 1.5, color: Colors.red.shade100),
+                              Divider(thickness: 1.5, color: isDark ? Colors.red.shade900 : Colors.red.shade100),
                               const SizedBox(height: 18),
-                              // Sección para subir logo
                               GestureDetector(
                                 onTap: _isLoading ? null : _seleccionarImagen,
                                 child: Container(
@@ -494,15 +496,15 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                   margin: const EdgeInsets.symmetric(vertical: 10),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[100],
+                                    color: isDark ? Colors.grey[800] : Colors.grey[100],
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: Colors.red.shade200,
+                                      color: isDark ? Colors.red.shade900 : Colors.red.shade200,
                                       width: 2,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.red.shade50,
+                                        color: isDark ? Colors.black54 : Colors.red.shade50,
                                         blurRadius: 8,
                                         offset: const Offset(0, 2),
                                       ),
@@ -524,7 +526,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                             Icon(Icons.add_a_photo, size: 48, color: Colors.red.shade400),
                                             const SizedBox(height: 10),
                                             Text('Subir logo del restaurante',
-                                                style: TextStyle(color: Colors.red.shade700)),
+                                                style: TextStyle(color: isDark ? Colors.white : Colors.red.shade700)),
                                             const Text('(Se redimensionará a 500x500 px)',
                                                 style: TextStyle(fontSize: 12, color: Colors.grey)),
                                           ],
@@ -546,9 +548,10 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                 label: 'Nombre del Restaurante',
                                 icon: Icons.restaurant,
                                 validator: (value) => value!.isEmpty ? 'Ingrese el nombre' : null,
+                                isDark: isDark,
+                                textColor: textColor,
                               ),
                               const SizedBox(height: 18),
-                              // CAMPO UBICACIÓN COMO BOTÓN
                               GestureDetector(
                                 onTap: _isLoading ? null : _seleccionarUbicacionEnMapa,
                                 child: AbsorbPointer(
@@ -557,6 +560,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                     label: 'Ubicación',
                                     icon: Icons.location_on,
                                     validator: (value) => value!.isEmpty ? 'Seleccione la ubicación' : null,
+                                    isDark: isDark,
+                                    textColor: textColor,
                                   ),
                                 ),
                               ),
@@ -567,6 +572,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                 icon: Icons.phone,
                                 keyboardType: TextInputType.phone,
                                 validator: (value) => value!.isEmpty ? 'Ingrese un celular' : null,
+                                isDark: isDark,
+                                textColor: textColor,
                               ),
                               const SizedBox(height: 18),
                               _buildTextField(
@@ -575,9 +582,10 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                 icon: Icons.category,
                                 hintText: 'Ej: Comida rápida, Italiana, Vegetariana, etc.',
                                 validator: (value) => value!.isEmpty ? 'Ingrese la temática' : null,
+                                isDark: isDark,
+                                textColor: textColor,
                               ),
                               const SizedBox(height: 28),
-                              // Botón principal mejorado
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
@@ -607,12 +615,11 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                 ),
                               ),
                               const SizedBox(height: 18),
-                              // Botón de salir debajo del botón principal
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.exit_to_app, color: Colors.red),
-                                  label: const Text(
+                                  label: Text(
                                     'SALIR SIN REGISTRAR',
                                     style: TextStyle(
                                       fontSize: 16,
@@ -627,6 +634,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
+                                    backgroundColor: isDark ? Colors.grey[900] : Colors.white,
                                   ),
                                 ),
                               ),
@@ -641,6 +649,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
             ),
     );
   }
+
   Future<void> _salirAlLogin() async {
     // Mostrar loader modal
     showDialog(
@@ -649,6 +658,8 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
     final prefs = await SharedPreferences.getInstance();
+    // Guarda el modo oscuro antes de limpiar
+    final mapTheme = prefs.getString('map_theme');
     // Marcar como logout forzado
     await prefs.setBool('forcedLogout', true);
     // Limpiar credenciales de sesión persistente
@@ -658,7 +669,16 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     await prefs.setBool('hasRestaurant', false);
     await prefs.remove('restaurante_id');
     await prefs.remove('restaurantes');
-
+    // Restaurar el modo oscuro después de limpiar
+    if (mapTheme != null) {
+      await prefs.setString('map_theme', mapTheme);
+      // Fuerza el tema oscuro si el valor es 'oscuro'
+      if (mapTheme == 'oscuro') {
+        Provider.of<ThemeProvider>(context, listen: false).setDarkMode(true);
+      } else {
+        Provider.of<ThemeProvider>(context, listen: false).setDarkMode(false);
+      }
+    }
     if (mounted) {
       Navigator.of(context, rootNavigator: true).pop();
       print('[VISTA NEWREST] [REDIR] Redirigiendo a LoginScreen desde botón salir');
@@ -676,19 +696,26 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     required IconData icon,
     String? hintText,
     TextInputType? keyboardType,
-    required String? Function(String?) validator, // <-- Obligatorio, sin '?'
+    required String? Function(String?) validator,
+    bool isDark = false,
+    Color textColor = Colors.black,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        prefixIcon: Icon(icon, color: textColor),
         hintText: hintText,
+        filled: true,
+        fillColor: isDark ? Colors.grey[900] : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
         ),
+        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+        labelStyle: TextStyle(color: textColor),
       ),
       keyboardType: keyboardType,
+      style: TextStyle(fontSize: 18, color: textColor),
       validator: validator,
     );
   }

@@ -205,6 +205,8 @@ class SettingsDuenoPage extends StatelessWidget {
     );
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    // Guarda el modo oscuro antes de limpiar
+    final mapTheme = prefs.getString('map_theme');
     // Llamada a la API para cerrar sesión
     if (token != null && token.isNotEmpty) {
       try {
@@ -220,11 +222,16 @@ class SettingsDuenoPage extends StatelessWidget {
         print('Error al llamar logout: $e');
       }
     }
-    // Guardar el modo oscuro antes de limpiar
-    final themeMode = prefs.getString('themeMode');
     await prefs.clear();
-    if (themeMode != null) {
-      await prefs.setString('themeMode', themeMode);
+    // Restaurar el modo oscuro después de limpiar
+    if (mapTheme != null) {
+      await prefs.setString('map_theme', mapTheme);
+      // Fuerza el tema oscuro si el valor es 'oscuro'
+      if (mapTheme == 'oscuro') {
+        Provider.of<ThemeProvider>(context, listen: false).setDarkMode(true);
+      } else {
+        Provider.of<ThemeProvider>(context, listen: false).setDarkMode(false);
+      }
     }
     // Cerrar loader modal
     Navigator.of(context, rootNavigator: true).pop();

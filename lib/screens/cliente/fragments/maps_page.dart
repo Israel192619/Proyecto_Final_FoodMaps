@@ -29,6 +29,7 @@ class _MapsPageState extends State<MapsPage> {
   List<LatLng> infoPositions = [];
   List<Widget> infoWidgets = [];
   List<Map<String, dynamic>> _restaurantesData = [];
+  int _estadoFiltro = -1; // -1: todos, 0: cerrado, 1: abierto
 
   static final LatLng _defaultCenter = LatLng(-17.382202, -66.151789);
 
@@ -120,29 +121,124 @@ class _MapsPageState extends State<MapsPage> {
         }
         _lastIsDark = themeProvider.isDarkMode;
 
-        return Stack(
-          children: [
-            GoogleMap(
-              onMapCreated: (controller) async {
-                print('[MAP_STYLE] onMapCreated llamado');
-                _mapController = controller;
-                _mapStyleApplied = false;
-                await _applyMapStyle(themeProvider.isDarkMode);
-                _customController.googleMapController = controller;
-              },
-              initialCameraPosition: CameraPosition(target: _defaultCenter, zoom: 15),
-              markers: _markers,
-              myLocationEnabled: true,
-              onTap: (_) => _customController.hideInfoWindow!(),
-              onCameraMove: (_) => _customController.onCameraMove!(),
-            ),
-            CustomMapInfoWindow(
-              controller: _customController,
-              offset: Offset(0, 30),
-              height: 170,
-              width: 180,
-            )
-          ],
+        return SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Wrap(
+                          spacing: 10,
+                          children: [
+                            ChoiceChip(
+                              label: Row(
+                                children: const [
+                                  Icon(Icons.all_inclusive, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Todos'),
+                                ],
+                              ),
+                              selected: _estadoFiltro == -1,
+                              selectedColor: Colors.red.shade400,
+                              backgroundColor: Colors.red.shade100,
+                              labelStyle: TextStyle(
+                                color: _estadoFiltro == -1 ? Colors.white : Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              elevation: _estadoFiltro == -1 ? 6 : 2,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _estadoFiltro = -1;
+                                  _actualizarMarcadores();
+                                });
+                              },
+                            ),
+                            ChoiceChip(
+                              label: Row(
+                                children: const [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Abiertos'),
+                                ],
+                              ),
+                              selected: _estadoFiltro == 1,
+                              selectedColor: Colors.green.shade400,
+                              backgroundColor: Colors.green.shade100,
+                              labelStyle: TextStyle(
+                                color: _estadoFiltro == 1 ? Colors.white : Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              elevation: _estadoFiltro == 1 ? 6 : 2,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _estadoFiltro = 1;
+                                  _actualizarMarcadores();
+                                });
+                              },
+                            ),
+                            ChoiceChip(
+                              label: Row(
+                                children: const [
+                                  Icon(Icons.cancel, color: Colors.red, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Cerrados'),
+                                ],
+                              ),
+                              selected: _estadoFiltro == 0,
+                              selectedColor: Colors.red.shade400,
+                              backgroundColor: Colors.red.shade100,
+                              labelStyle: TextStyle(
+                                color: _estadoFiltro == 0 ? Colors.white : Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              elevation: _estadoFiltro == 0 ? 6 : 2,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _estadoFiltro = 0;
+                                  _actualizarMarcadores();
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    GoogleMap(
+                      onMapCreated: (controller) async {
+                        print('[MAP_STYLE] onMapCreated llamado');
+                        _mapController = controller;
+                        _mapStyleApplied = false;
+                        await _applyMapStyle(themeProvider.isDarkMode);
+                        _customController.googleMapController = controller;
+                      },
+                      initialCameraPosition: CameraPosition(target: _defaultCenter, zoom: 15),
+                      markers: _markers,
+                      myLocationEnabled: true,
+                      onTap: (_) => _customController.hideInfoWindow!(),
+                      onCameraMove: (_) => _customController.onCameraMove!(),
+                    ),
+                    CustomMapInfoWindow(
+                      controller: _customController,
+                      offset: Offset(0, 30),
+                      height: 170,
+                      width: 180,
+                    )
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -157,7 +253,7 @@ class _MapsPageState extends State<MapsPage> {
       return;
     }
     try {
-      final url = '${AppConfig.apiBaseUrl}${AppConfig.restaurantesClienteEndpoint}';
+      final url = '${AppConfig.apiBaseUrl}/clientes/restaurantes';
       print('[MAPS_PAGE] Realizando GET a $url');
       final response = await http.get(
         Uri.parse(url),
@@ -170,52 +266,60 @@ class _MapsPageState extends State<MapsPage> {
       print('[MAPS_PAGE] Respuesta body: ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('[MAPS_PAGE] Decodificado data: $data');
-        final List restaurantes = data is List ? data : (data['restaurantes'] ?? []);
+        final List restaurantes = data is Map && data.containsKey('data') ? data['data'] : [];
         print('[MAPS_PAGE] Restaurantes extraídos: $restaurantes');
-        _markers.clear();
         _restaurantesData = [];
         for (var obj in restaurantes) {
-          print('[MAPS_PAGE] Procesando restaurante: $obj');
-          // Agrega SIEMPRE a la tabla
           _restaurantesData.add(obj);
-
-          final lat = obj['latitud'] != null ? double.tryParse(obj['latitud'].toString()) : null;
-          final lng = obj['longitud'] != null ? double.tryParse(obj['longitud'].toString()) : null;
-          final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
-          if (lat == null || lng == null) {
-            print('[MAPS_PAGE] Restaurante sin coordenadas, solo tabla.');
-            continue;
-          }
-
-          final markerId = MarkerId(obj['id'].toString());
-          final icon = BitmapDescriptor.defaultMarkerWithHue(
-            estado == 0 ? BitmapDescriptor.hueRed : BitmapDescriptor.hueGreen,
-          );
-
-          final position = LatLng(lat, lng);
-          _markers.add(
-            Marker(
-              markerId: markerId,
-              position: position,
-              icon: icon,
-              onTap: () {
-                infoPositions = [position];
-                infoWidgets = [_buildCustomInfoWindow(obj)];
-                setState(() {});
-                _customController.addInfoWindow!(infoWidgets, infoPositions);
-              },
-            ),
-          );
         }
-        print('[MAPS_PAGE] Total restaurantes agregados a _restaurantesData: ${_restaurantesData.length}');
-        setState(() {});
+        _actualizarMarcadores();
       } else {
         print('[MAPS_PAGE] Error al obtener restaurantes: ${response.statusCode}');
       }
     } catch (e) {
       print('[MAPS_PAGE] Excepción al obtener restaurantes: $e');
     }
+  }
+
+  void _actualizarMarcadores() {
+    _markers.clear();
+    for (var obj in _restaurantesData) {
+      final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
+      if (_estadoFiltro != -1 && estado != _estadoFiltro) continue;
+
+      final latLngStr = obj['ubicacion']?.toString();
+      double? lat, lng;
+      if (latLngStr != null && latLngStr.contains(',')) {
+        final parts = latLngStr.split(',');
+        lat = double.tryParse(parts[0]);
+        lng = double.tryParse(parts[1]);
+      }
+      if (lat == null || lng == null) {
+        print('[MAPS_PAGE] Restaurante sin coordenadas, solo tabla.');
+        continue;
+      }
+
+      final markerId = MarkerId(obj['id'].toString());
+      final icon = estado == 1
+          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+          : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+      final position = LatLng(lat, lng);
+      _markers.add(
+        Marker(
+          markerId: markerId,
+          position: position,
+          icon: icon,
+          onTap: () {
+            infoPositions = [position];
+            infoWidgets = [_buildCustomInfoWindow(obj)];
+            setState(() {});
+            _customController.addInfoWindow!(infoWidgets, infoPositions);
+          },
+        ),
+      );
+    }
+    setState(() {});
   }
 
   Widget _buildCustomInfoWindow(Map<String, dynamic> restaurantData) {

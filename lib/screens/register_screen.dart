@@ -207,259 +207,303 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 600;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    final textColor = isDark ? Colors.white : Colors.black;
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            constraints: BoxConstraints(maxWidth: isDesktop ? 450 : double.infinity),
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
-                  const Text(
-                    "REGISTRARSE",
-                    style: TextStyle(
-                      fontSize: 40,
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Nombre de usuario
-                  TextFormField(
-                    controller: _usernameController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.person, color: Colors.black),
-                      hintText: "Nombre de usuario",
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingrese un nombre de usuario';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Celular
-                  TextFormField(
-                    controller: _celularController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.phone, color: Colors.black),
-                      hintText: "Celular",
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingrese un número de celular';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Correo electrónico
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.email, color: Colors.black),
-                      hintText: "Email",
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingrese su email';
-                      }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                        return 'Ingrese un email válido';
-                      }
-                      if (value.length < 5) {
-                        return 'El email debe tener al menos 5 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Contraseña
-                  TextFormField(
-                    controller: _pass1Controller,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock, color: Colors.black),
-                      hintText: "Contraseña",
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    validator: (value) {
-                      if (value == null || value.length < 6) {
-                        return 'Mínimo 6 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Repetir contraseña
-                  TextFormField(
-                    controller: _pass2Controller,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.black),
-                      hintText: "Repita su contraseña",
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    validator: (value) {
-                      if (value != _pass1Controller.text) {
-                        return 'Las contraseñas no coinciden';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Selección de rol
-                  DropdownButtonFormField<String>(
-                    value: _selectedRol,
-                    dropdownColor: isDark ? Colors.grey[900] : Colors.white,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.person_outline, color: Colors.black),
-                      hintText: "Seleccione su rol",
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    iconEnabledColor: Colors.red,
-                    // Forzar color del texto seleccionado
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: isDark ? Colors.black : Colors.black, // Siempre negro para el campo
-                    ),
-                    selectedItemBuilder: (context) {
-                      return [
-                        Text(
-                          'Cliente',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDark ? Colors.black : Colors.black, // Siempre negro para el campo
-                          ),
-                        ),
-                        Text(
-                          'Dueño',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDark ? Colors.black : Colors.black, // Siempre negro para el campo
-                          ),
-                        ),
-                      ];
-                    },
-                    items: [
-                      DropdownMenuItem(
-                        value: 'cliente',
-                        child: Text(
-                          'Cliente',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDark ? Colors.white : Colors.black, // Opciones del menú
-                          ),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'dueño',
-                        child: Text(
-                          'Dueño',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDark ? Colors.white : Colors.black, // Opciones del menú
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRol = value;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Seleccione un rol';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
-                  ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () async {
-                            if (_loading) return;
-                            await _registrar();
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red, // Mejor contraste
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                        : const Text(
-                      "Registrarse",
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [Colors.black, Colors.grey.shade900]
+                : [Colors.white, Colors.red.shade50],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              constraints: BoxConstraints(maxWidth: 450),
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    Text(
+                      "REGISTRARSE",
                       style: TextStyle(
-                        color: Colors.white,
+                        fontSize: 40,
+                        color: textColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Nombre de usuario
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.person, color: textColor),
+                        hintText: "Nombre de usuario",
+                        filled: true,
+                        fillColor: isDark ? Colors.grey[900] : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                        labelStyle: TextStyle(color: textColor),
+                      ),
+                      style: TextStyle(fontSize: 18, color: textColor),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Ingrese un nombre de usuario';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Celular
+                    TextFormField(
+                      controller: _celularController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.phone, color: textColor),
+                        hintText: "Celular",
+                        filled: true,
+                        fillColor: isDark ? Colors.grey[900] : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                        labelStyle: TextStyle(color: textColor),
+                      ),
+                      style: TextStyle(fontSize: 18, color: textColor),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Ingrese un número de celular';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Correo electrónico
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.email, color: textColor),
+                        hintText: "Email",
+                        filled: true,
+                        fillColor: isDark ? Colors.grey[900] : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                        labelStyle: TextStyle(color: textColor),
+                      ),
+                      style: TextStyle(fontSize: 18, color: textColor),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Ingrese su email';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          return 'Ingrese un email válido';
+                        }
+                        if (value.length < 5) {
+                          return 'El email debe tener al menos 5 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Contraseña
+                    TextFormField(
+                      controller: _pass1Controller,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.lock, color: textColor),
+                        hintText: "Contraseña",
+                        filled: true,
+                        fillColor: isDark ? Colors.grey[900] : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                        labelStyle: TextStyle(color: textColor),
+                      ),
+                      style: TextStyle(fontSize: 18, color: textColor),
+                      validator: (value) {
+                        if (value == null || value.length < 6) {
+                          return 'Mínimo 6 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Repetir contraseña
+                    TextFormField(
+                      controller: _pass2Controller,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.lock_outline, color: textColor),
+                        hintText: "Repita su contraseña",
+                        filled: true,
+                        fillColor: isDark ? Colors.grey[900] : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                        labelStyle: TextStyle(color: textColor),
+                      ),
+                      style: TextStyle(fontSize: 18, color: textColor),
+                      validator: (value) {
+                        if (value != _pass1Controller.text) {
+                          return 'Las contraseñas no coinciden';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Selección de rol
+                    DropdownButtonFormField<String>(
+                      value: _selectedRol,
+                      dropdownColor: isDark ? Colors.grey[900] : Colors.white,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.person_outline, color: textColor),
+                        hintText: "Seleccione su rol",
+                        filled: true,
+                        fillColor: isDark ? Colors.grey[900] : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                        labelStyle: TextStyle(color: textColor),
+                      ),
+                      iconEnabledColor: Colors.red,
+                      style: TextStyle(
                         fontSize: 18,
+                        color: textColor,
+                      ),
+                      selectedItemBuilder: (context) {
+                        return [
+                          Text(
+                            'Cliente',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: textColor,
+                            ),
+                          ),
+                          Text(
+                            'Dueño',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: textColor,
+                            ),
+                          ),
+                        ];
+                      },
+                      items: [
+                        DropdownMenuItem(
+                          value: 'cliente',
+                          child: Text(
+                            'Cliente',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dueño',
+                          child: Text(
+                            'Dueño',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedRol = value;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Seleccione un rol';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 40),
+                    // Botón de registro
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _registrar,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: _loading
+                            ? SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : Text(
+                                "REGISTRAR",
+                                style: TextStyle(fontSize: 18, color: Colors.white),
+                              ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 30),
-                ],
+                    const SizedBox(height: 20),
+
+                    // Texto de navegación a la pantalla de login
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "¿Ya tienes una cuenta? ",
+                          style: TextStyle(fontSize: 16, color: textColor),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/login');
+                          },
+                          child: Text(
+                            "Iniciar sesión",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
           ),
@@ -468,3 +512,4 @@ class _RegistroScreenState extends State<RegistroScreen> {
     );
   }
 }
+

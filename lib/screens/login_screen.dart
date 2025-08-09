@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Redirigir al home y limpiar el stack de navegación
         Navigator.pushNamedAndRemoveUntil(
             context,
-            '/home',
+            '/mapsCliActivity',
                 (route) => false
         );
       } else {
@@ -233,8 +233,8 @@ class _LoginScreenState extends State<LoginScreen> {
         switch (response.statusCode) {
           case 200: // Cliente
             await prefs.setBool('hasRestaurant', true);
-            print('[VISTA LOGIN] [REDIR] Redirigiendo a /home');
-            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+            print('[VISTA LOGIN] [REDIR] Redirigiendo a /mapsCliActivity');
+            Navigator.pushNamedAndRemoveUntil(context, '/mapsCliActivity', (route) => false);
             break;
 
           case 201: // Dueño sin restaurante

@@ -38,6 +38,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
   Set<Marker> _allMarkers = {};
   List<Map<String, dynamic>> _restaurantesData = [];
   Key _mapKey = UniqueKey(); // NUEVO: Key para forzar redibujado del mapa
+  int _estadoFiltro = -1; // -1: todos, 0: cerrado, 1: abierto
 
   @override
   void initState() {
@@ -433,44 +434,187 @@ class _MapsDuePageState extends State<MapsDuePage> {
         } else {
           print('[MARCADOR] No hay marcador principal para agregar');
         }
-        return Stack(
-          children: [
-            GoogleMap(
-              key: _mapKey, // NUEVO: Usa la key para forzar redibujado
-              onMapCreated: (controller) async {
-                print('[MAP_STYLE] onMapCreated llamado');
-                _mapController = controller;
-                _mapStyleApplied = false;
-                await _applyMapStyle(themeProvider.isDarkMode);
-                if (_customController != null) {
-                  _customController!.initialize(controller);
-                }
-                // Centrar el mapa en la ubicación guardada si existe
-                _mapController?.moveCamera(
-                  CameraUpdate.newCameraPosition(
-                    CameraPosition(target: _defaultPosition, zoom: 15),
-                  ),
-                );
-              },
-              initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
-              markers: markersToShow,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              onTap: (_) => _customController?.hideInfoWindow(),
-              onCameraMove: (_) => _customController?.customController.onCameraMove!(),
-            ),
-            // Usa el widget correcto de info window personalizado
-            if (_customController != null)
-              CustomMapInfoWindow(
-                controller: _customController!.customController,
-                offset: const Offset(0, 30),
-                height: 170,
-                width: 180,
+        return SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Wrap(
+                          spacing: 10,
+                          children: [
+                            ChoiceChip(
+                              label: Row(
+                                children: const [
+                                  Icon(Icons.all_inclusive, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Todos'),
+                                ],
+                              ),
+                              selected: _estadoFiltro == -1,
+                              selectedColor: Colors.red.shade400,
+                              backgroundColor: Colors.red.shade100,
+                              labelStyle: TextStyle(
+                                color: _estadoFiltro == -1 ? Colors.white : Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              elevation: _estadoFiltro == -1 ? 6 : 2,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _estadoFiltro = -1;
+                                  _actualizarMarcadores();
+                                });
+                              },
+                            ),
+                            ChoiceChip(
+                              label: Row(
+                                children: const [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Abiertos'),
+                                ],
+                              ),
+                              selected: _estadoFiltro == 1,
+                              selectedColor: Colors.green.shade400,
+                              backgroundColor: Colors.green.shade100,
+                              labelStyle: TextStyle(
+                                color: _estadoFiltro == 1 ? Colors.white : Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              elevation: _estadoFiltro == 1 ? 6 : 2,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _estadoFiltro = 1;
+                                  _actualizarMarcadores();
+                                });
+                              },
+                            ),
+                            ChoiceChip(
+                              label: Row(
+                                children: const [
+                                  Icon(Icons.cancel, color: Colors.red, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Cerrados'),
+                                ],
+                              ),
+                              selected: _estadoFiltro == 0,
+                              selectedColor: Colors.red.shade400,
+                              backgroundColor: Colors.red.shade100,
+                              labelStyle: TextStyle(
+                                color: _estadoFiltro == 0 ? Colors.white : Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              elevation: _estadoFiltro == 0 ? 6 : 2,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _estadoFiltro = 0;
+                                  _actualizarMarcadores();
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-          ],
+              Expanded(
+                child: Stack(
+                  children: [
+                    GoogleMap(
+                      key: _mapKey,
+                      onMapCreated: (controller) async {
+                        print('[MAP_STYLE] onMapCreated llamado');
+                        _mapController = controller;
+                        _mapStyleApplied = false;
+                        await _applyMapStyle(themeProvider.isDarkMode);
+                        if (_customController != null) {
+                          _customController!.initialize(controller);
+                        }
+                        _mapController?.moveCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(target: _defaultPosition, zoom: 15),
+                          ),
+                        );
+                      },
+                      initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
+                      markers: markersToShow,
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
+                      onTap: (_) => _customController?.hideInfoWindow(),
+                      onCameraMove: (_) => _customController?.customController.onCameraMove!(),
+                    ),
+                    if (_customController != null)
+                      CustomMapInfoWindow(
+                        controller: _customController!.customController,
+                        offset: const Offset(0, 30),
+                        height: 170,
+                        width: 180,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
+  }
+
+  void _actualizarMarcadores() {
+    Set<Marker> filteredMarkers = {};
+    for (var obj in _restaurantesData) {
+      final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
+      if (_estadoFiltro != -1 && estado != _estadoFiltro) continue;
+
+      final latLngStr = obj['ubicacion']?.toString();
+      double? lat, lng;
+      if (latLngStr != null && latLngStr.contains(',')) {
+        final parts = latLngStr.split(',');
+        lat = double.tryParse(parts[0]);
+        lng = double.tryParse(parts[1]);
+      }
+      if (lat == null || lng == null) {
+        print('[MAPS_DUE_PAGE] Restaurante sin coordenadas, solo tabla.');
+        continue;
+      }
+
+      final markerId = MarkerId(obj['id'].toString());
+      final icon = estado == 1
+          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+          : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+      final position = LatLng(lat, lng);
+      filteredMarkers.add(
+        Marker(
+          markerId: markerId,
+          position: position,
+          icon: icon,
+          onTap: () {
+            final imagenSafe = (obj['imagen'] ?? '').toString();
+            final infoWidget = RestaurantInfoWindow(
+              restaurantData: {
+                ...obj,
+                'imagen': imagenSafe,
+              },
+              onMenuPressed: () {
+                print('[window] Ver menú de restaurante: ${obj['nombre_restaurante']}');
+              },
+            );
+            _customController?.showInfoWindow([infoWidget], [position]);
+          },
+        ),
+      );
+    }
+    setState(() {
+      _allMarkers = filteredMarkers;
+    });
   }
 
   Widget _buildDesktopTable(BuildContext context) {

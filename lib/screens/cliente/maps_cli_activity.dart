@@ -26,12 +26,9 @@ class _MapsCliActivityState extends State<MapsCliActivity> {
       onWillPop: _onWillPop,
       child: Scaffold(
         extendBody: true,
-        body: Padding(
-          padding: const EdgeInsets.only(bottom: 72), // Espacio para los controles de zoom
-          child: IndexedStack(
-            index: _selectedIndex,
-            children: _pages,
-          ),
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _pages,
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(

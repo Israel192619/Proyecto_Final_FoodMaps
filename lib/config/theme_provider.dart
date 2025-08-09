@@ -12,6 +12,12 @@ class ThemeProvider extends ChangeNotifier {
 
   bool get isDarkMode => _themeMode == ThemeMode.dark;
 
+  void setDarkMode(bool isDark) {
+    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    _saveTheme(isDark);
+    notifyListeners();
+  }
+
   void toggleTheme(bool isOn) {
     _themeMode = isOn ? ThemeMode.dark : ThemeMode.light;
     _saveTheme(isOn);
@@ -20,14 +26,22 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('isDarkMode') ?? false;
-    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    // Prioriza map_theme si existe, si no usa isDarkMode
+    final mapTheme = prefs.getString('map_theme');
+    if (mapTheme != null) {
+      _themeMode = mapTheme == 'oscuro' ? ThemeMode.dark : ThemeMode.light;
+      await prefs.setBool('isDarkMode', mapTheme == 'oscuro');
+    } else {
+      final isDark = prefs.getBool('isDarkMode') ?? false;
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+      await prefs.setString('map_theme', isDark ? 'oscuro' : 'claro');
+    }
     notifyListeners();
   }
 
   Future<void> _saveTheme(bool isDark) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDarkMode', isDark);
+    await prefs.setString('map_theme', isDark ? 'oscuro' : 'claro');
   }
 }
-
