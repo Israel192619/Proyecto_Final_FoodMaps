@@ -337,4 +337,28 @@ class RestauranteController extends Controller
             ], 500);
         }
     }
+    public function obtenerEstadoRestaurante($id)
+    {
+        try {
+            $restaurant = Restaurante::findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Estado del restaurante',
+                'data' => [
+                    'id' => $restaurant->id,
+                    'nombre_restaurante' => $restaurant->nombre_restaurante,
+                    'estado' => $restaurant->estado,
+                    'estado_text' => $restaurant->estado ? 'ABIERTO' : 'CERRADO',
+                    'updated_at' => $restaurant->updated_at
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
