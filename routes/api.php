@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProductoMenuController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MenuController;
 use App\Http\Controllers\RestauranteController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\IsOwnerMiddleware;
@@ -26,8 +27,9 @@ Route::group([
     Route::prefix('clientes')->middleware('auth:api')->group(function () {
         Route::get('/restaurantes', [RestauranteController::class, 'publicIndex']);
         Route::get('/restaurantes/{id}', [RestauranteController::class, 'showPublic']);
-        Route::apiResource('menus.productos', ProductoMenuController::class);
-        Route::post('menu/{id}/productos/{id}',[RestauranteController::class, 'update']);
+        Route::apiResource('restaurantes.menus.productos', ProductoMenuController::class);
+        Route::post('restaurantes/{restaurante_id}/menus/{menu_id}/productos/{producto_id}',[ProductoMenuController::class, 'update']);
+        Route::apiResource('restaurantes.menus', MenuController::class);
     });
 
     // Restaurantes rutas privadas (Dueños)
