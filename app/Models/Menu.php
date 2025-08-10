@@ -14,9 +14,8 @@ class Menu extends Model
     {
         return $this->belongsTo(Restaurante::class);
     }
-    public function platillos()
+    public function menuProductos()
     {
-        return $this->hasMany(MenuPlatillo::class);
+        return $this->hasMany(MenuProducto::class);
     }
-
 }

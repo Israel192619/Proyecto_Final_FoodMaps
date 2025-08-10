@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('menu_bebidas', function (Blueprint $table) {
+        Schema::create('menu_productos', function (Blueprint $table) {
             $table->id();
             $table->foreignId('menu_id')->constrained('menus')->onDelete('cascade');
             $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
             $table->string('descripcion')->nullable();
+            $table->string('tipo')->nullable();
             $table->decimal('precio', 8, 2);
             $table->string('imagen')->nullable();
             $table->tinyInteger('disponible')->default(1);
@@ -28,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('menu_bebidas');
+        Schema::dropIfExists('menu_productos');
     }
 };

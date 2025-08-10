@@ -10,13 +10,8 @@ class Producto extends Model
         'nombre_producto',
     ];
 
-    public function menuBebidas()
+    public function menuProductos()
     {
-        return $this->hasMany(MenuBebida::class);
-    }
-
-    public function menuPlatillos()
-    {
-        return $this->hasMany(MenuPlatillo::class);
+        return $this->hasMany(MenuProducto::class);
     }
 }
