@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../../config/theme_provider.dart';
 import '../../../config/config.dart';
+import '../../publica/new_restaurante.dart'; // Agrega este import
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -165,7 +166,12 @@ class SettingsPage extends StatelessWidget {
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
                                     onPressed: () {
-                                      // Acción para agregar negocio
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const NewRestauranteScreen(),
+                                        ),
+                                      );
                                     },
                                     icon: const Icon(Icons.add_business),
                                     label: const Text("Agregar mi negocio"),
