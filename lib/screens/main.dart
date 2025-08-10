@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dueño/new_restaurante.dart';
+import 'publica/new_restaurante.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 import 'cliente/maps_cli_activity.dart';
