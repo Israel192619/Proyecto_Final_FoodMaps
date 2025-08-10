@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:convert';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
@@ -73,13 +73,14 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
 
   Future<void> _seleccionarImagen() async {
     try {
-      if (kIsWeb) {
-        // Para web
+      // Solo permite seleccionar desde archivos en web y escritorio
+      if (kIsWeb || (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows ||
+                                 defaultTargetPlatform == TargetPlatform.linux ||
+                                 defaultTargetPlatform == TargetPlatform.macOS))) {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.image,
           allowMultiple: false,
         );
-
         if (result != null && result.files.isNotEmpty) {
           final file = result.files.first;
           final bytes = file.bytes;
@@ -96,12 +97,10 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
         final picker = ImagePicker();
         final source = await _mostrarSelectorFuenteImagen();
         if (source == null) return;
-
         final pickedFile = await picker.pickImage(
           source: source,
           imageQuality: 85,
         );
-
         if (pickedFile != null) {
           final bytes = await pickedFile.readAsBytes();
           final resizedImage = await _resizeImage(bytes);
@@ -157,8 +156,12 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
   }
 
   Future<ImageSource?> _mostrarSelectorFuenteImagen() async {
-    if (kIsWeb) return null;
-
+    // Solo para móvil, no para web/escritorio
+    if (kIsWeb || (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows ||
+                               defaultTargetPlatform == TargetPlatform.linux ||
+                               defaultTargetPlatform == TargetPlatform.macOS))) {
+      return null;
+    }
     return await showDialog<ImageSource>(
       context: context,
       builder: (context) => AlertDialog(
@@ -438,6 +441,12 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
 
+    // Detecta si es escritorio
+    final isDesktop = !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+       defaultTargetPlatform == TargetPlatform.linux ||
+       defaultTargetPlatform == TargetPlatform.macOS);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Nuevo Restaurante'),
@@ -525,8 +534,12 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                           children: [
                                             Icon(Icons.add_a_photo, size: 48, color: Colors.red.shade400),
                                             const SizedBox(height: 10),
-                                            Text('Subir logo del restaurante',
-                                                style: TextStyle(color: isDark ? Colors.white : Colors.red.shade700)),
+                                            Text(
+                                              kIsWeb || isDesktop
+                                                ? 'Selecciona una imagen desde el explorador de archivos'
+                                                : 'Subir logo del restaurante',
+                                              style: TextStyle(color: isDark ? Colors.white : Colors.red.shade700),
+                                            ),
                                             const Text('(Se redimensionará a 500x500 px)',
                                                 style: TextStyle(fontSize: 12, color: Colors.grey)),
                                           ],
@@ -552,19 +565,31 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                 textColor: textColor,
                               ),
                               const SizedBox(height: 18),
-                              GestureDetector(
-                                onTap: _isLoading ? null : _seleccionarUbicacionEnMapa,
-                                child: AbsorbPointer(
-                                  child: _buildTextField(
-                                    controller: _ubicacionController,
-                                    label: 'Ubicación',
-                                    icon: Icons.location_on,
-                                    validator: (value) => value!.isEmpty ? 'Seleccione la ubicación' : null,
-                                    isDark: isDark,
-                                    textColor: textColor,
+                              // CAMBIO: Campo de ubicación según plataforma
+                              if (kIsWeb || isDesktop)
+                                _buildTextField(
+                                  controller: _ubicacionController,
+                                  label: 'Ubicación (coordenadas o dirección)',
+                                  icon: Icons.location_on,
+                                  hintText: 'Ej: -17.38,-66.15 o dirección textual',
+                                  validator: (value) => value!.isEmpty ? 'Ingrese la ubicación' : null,
+                                  isDark: isDark,
+                                  textColor: textColor,
+                                )
+                              else
+                                GestureDetector(
+                                  onTap: _isLoading ? null : _seleccionarUbicacionEnMapa,
+                                  child: AbsorbPointer(
+                                    child: _buildTextField(
+                                      controller: _ubicacionController,
+                                      label: 'Ubicación',
+                                      icon: Icons.location_on,
+                                      validator: (value) => value!.isEmpty ? 'Seleccione la ubicación' : null,
+                                      isDark: isDark,
+                                      textColor: textColor,
+                                    ),
                                   ),
                                 ),
-                              ),
                               const SizedBox(height: 18),
                               _buildTextField(
                                 controller: _celularController,

@@ -657,6 +657,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   Widget _buildDesktopTable(BuildContext context) {
     // Reutiliza el widget de tabla de escritorio de maps_page
+    // Añade el parámetro showEstado para mostrar la columna de estado
     return MapsDesktopTable(
       restaurantesData: _restaurantesData,
       onMenuPressed: (rest) {
@@ -681,6 +682,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
           ),
         );
       },
+      showEstado: true,
     );
   }
 }
