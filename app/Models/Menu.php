@@ -14,8 +14,10 @@ class Menu extends Model
     {
         return $this->belongsTo(Restaurante::class);
     }
-    public function menuProductos()
+    public function productos()
     {
-        return $this->hasMany(MenuProducto::class);
+        return $this->belongsToMany(Producto::class, 'menu_productos')
+            ->withPivot('descripcion', 'tipo', 'precio', 'imagen', 'disponible')
+            ->withTimestamps();
     }
 }

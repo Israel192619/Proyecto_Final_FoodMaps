@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ProductoMenuController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RestauranteController;
@@ -21,10 +22,12 @@ Route::group([
     'middleware' => ['api'],
 ], function () {
 
-    // Restaurantes rutas publicas (clientes)
+    // Restaurantes rutas publicas (dueños y clientes)
     Route::prefix('clientes')->middleware('auth:api')->group(function () {
         Route::get('/restaurantes', [RestauranteController::class, 'publicIndex']);
         Route::get('/restaurantes/{id}', [RestauranteController::class, 'showPublic']);
+        Route::apiResource('menus.productos', ProductoMenuController::class);
+        Route::post('menu/{id}/productos/{id}',[RestauranteController::class, 'update']);
     });
 
     // Restaurantes rutas privadas (Dueños)

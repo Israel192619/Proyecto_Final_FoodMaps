@@ -10,8 +10,10 @@ class Producto extends Model
         'nombre_producto',
     ];
 
-    public function menuProductos()
+    public function menus()
     {
-        return $this->hasMany(MenuProducto::class);
+        return $this->belongsToMany(Menu::class, 'menu_productos')
+            ->withPivot('descripcion', 'tipo', 'precio', 'imagen', 'disponible')
+            ->withTimestamps();
     }
 }
