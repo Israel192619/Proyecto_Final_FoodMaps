@@ -27,7 +27,11 @@ Route::group([
     Route::prefix('clientes')->middleware('auth:api')->group(function () {
         Route::get('/restaurantes', [RestauranteController::class, 'publicIndex']);
         Route::get('/restaurantes/{id}', [RestauranteController::class, 'showPublic']);
-        Route::apiResource('restaurantes.menus.productos', ProductoMenuController::class);
+        Route::apiResource('restaurantes.menus.productos', ProductoMenuController::class)
+            ->except(['store', 'update', 'destroy']);
+        Route::apiResource('restaurantes.menus.productos', ProductoMenuController::class)
+            ->only(['store', 'update', 'destroy'])
+            ->middleware(IsOwnerMiddleware::class);
         Route::post('restaurantes/{restaurante_id}/menus/{menu_id}/productos/{producto_id}',[ProductoMenuController::class, 'update']);
         Route::apiResource('restaurantes.menus', MenuController::class);
     });

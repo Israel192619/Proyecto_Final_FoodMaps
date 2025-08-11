@@ -23,12 +23,27 @@ class RestauranteController extends Controller
                 'message' => 'No está autorizado'
             ], 401);
         }
-        $restaurantes = Restaurante::where('user_id', operator: $user->id)->get();
+        $restaurantes = Restaurante::where('user_id', operator: $user->id)->with('menu')->get();
+        $data = $restaurantes->map(function ($restaurante) {
+            return [
+                'id' => $restaurante->id,
+                'nombre_restaurante' => $restaurante->nombre_restaurante,
+                'ubicacion' => $restaurante->ubicacion,
+                'celular' => $restaurante->celular,
+                'imagen' => $restaurante->imagen ? url('storage/' . $restaurante->imagen) : null,
+                'estado' => $restaurante->estado,
+                'tematica' => $restaurante->tematica,
+                'contador_vistas' => $restaurante->contador_vistas ?? 0,
+                'user_id' => $restaurante->user_id,
+                "created_at" => $restaurante->created_at->format("Y-m-d H:i:s"),
+                "menu_id" => $restaurante->menu ? $restaurante->menu->id : null
+            ];
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Lista de restaurantes propios',
-            'data' => $restaurantes,
+            'data' => $data,
             'total' => $restaurantes->count()
         ], 200);
     }
@@ -98,12 +113,13 @@ class RestauranteController extends Controller
                 'nombre_restaurante' => $restaurante->nombre_restaurante,
                 'ubicacion' => $restaurante->ubicacion,
                 'celular' => $restaurante->celular,
-                'imagen' => url('storage/' . $restaurante->imagen),
+                'imagen' => $restaurante->imagen ? url('storage/' . $restaurante->imagen) : null,
                 'estado' => $restaurante->estado,
                 'tematica' => $restaurante->tematica,
                 'contador_vistas' => $restaurante->contador_vistas ?? 0,
                 'user_id' => $restaurante->user_id,
                 "created_at" => $restaurante->created_at->format("Y-m-d H:i:s"),
+                "menu_id" => $menu->id
             ],
         ], 201);
     }
@@ -114,13 +130,15 @@ class RestauranteController extends Controller
     public function show(string $id)
     {
         $user = auth()->user();
-        $restaurante = Restaurante::find($id);
+        $restaurante = Restaurante::with('menu')->find($id);
+
         if (!$restaurante) {
             return response()->json([
                 'success' => false,
                 'message' => 'Restaurante no encontrado'
             ], 404);
         }
+
         if ($restaurante->user_id !== $user->id) {
             return response()->json([
                 'success' => false,
@@ -128,10 +146,24 @@ class RestauranteController extends Controller
             ], 403);
         }
 
+        $data = [
+            'id' => $restaurante->id,
+            'nombre_restaurante' => $restaurante->nombre_restaurante,
+            'ubicacion' => $restaurante->ubicacion,
+            'celular' => $restaurante->celular,
+            'imagen' => $restaurante->imagen ? url('storage/' . $restaurante->imagen) : null,
+            'estado' => $restaurante->estado,
+            'tematica' => $restaurante->tematica,
+            'contador_vistas' => $restaurante->contador_vistas ?? 0,
+            'user_id' => $restaurante->user_id,
+            'created_at' => $restaurante->created_at->format("Y-m-d H:i:s"),
+            'menu_id' => $restaurante->menu ? $restaurante->menu->id : null,
+        ];
+
         return response()->json([
             'success' => true,
             'message' => 'Detalles del restaurante',
-            'data' => $restaurante
+            'data' => $data
         ], 200);
     }
 
@@ -141,7 +173,7 @@ class RestauranteController extends Controller
     public function update(Request $request, string $id)
     {
         $user = auth()->user();
-        $restaurante = Restaurante::find($id);
+        $restaurante = Restaurante::with('menu')->find($id);
 
         if (!$restaurante) {
             return response()->json([
@@ -213,22 +245,24 @@ class RestauranteController extends Controller
                 'message' => 'Error al actualizar el restaurante'
             ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Restaurante editado correctamente',
-            'data' => [
+        $data = [
                 'id' => $restaurante->id,
                 'nombre_restaurante' => $restaurante->nombre_restaurante,
                 'ubicacion' => $restaurante->ubicacion,
                 'celular' => $restaurante->celular,
-                'imagen' => url('storage/' . $restaurante->imagen),
+                'imagen' => $restaurante->imagen ? url('storage/' . $restaurante->imagen) : null,
                 'estado' => $restaurante->estado,
                 'tematica' => $restaurante->tematica,
                 'contador_vistas' => $restaurante->contador_vistas ?? 0,
                 'user_id' => $restaurante->user_id,
                 "created_at" => $restaurante->created_at->format("Y-m-d H:i:s"),
-            ],
+                'menu_id' => $restaurante->menu ? $restaurante->menu->id : null,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Restaurante editado correctamente',
+            'data' => $data
         ], 200);
     }
 
@@ -262,18 +296,33 @@ class RestauranteController extends Controller
 
     public function publicIndex()
     {
-        $restaurantes = Restaurante::all();
+        $restaurantes = Restaurante::with('menu')->get();
         if ($restaurantes->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No hay restaurantes disponibles'
             ], 404);
         }
+        $data = $restaurantes->map(function ($restaurante) {
+            return [
+                'id' => $restaurante->id,
+                'nombre_restaurante' => $restaurante->nombre_restaurante,
+                'ubicacion' => $restaurante->ubicacion,
+                'celular' => $restaurante->celular,
+                'imagen' => $restaurante->imagen ? url('storage/' . $restaurante->imagen) : null,
+                'estado' => $restaurante->estado,
+                'tematica' => $restaurante->tematica,
+                'contador_vistas' => $restaurante->contador_vistas ?? 0,
+                'user_id' => $restaurante->user_id,
+                "created_at" => $restaurante->created_at->format("Y-m-d H:i:s"),
+                "menu_id" => $restaurante->menu ? $restaurante->menu->id : null
+            ];
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Lista de todos los restaurantes',
-            'data' => $restaurantes,
+            'data' => $data,
             'total' => $restaurantes->count()
         ], 200);
     }
@@ -281,32 +330,36 @@ class RestauranteController extends Controller
     public function showPublic($id, Request $request)
     {
         try {
-            $restaurant = Restaurante::findOrFail($id);
+            $restaurante = Restaurante::with('menu')->findOrFail($id);
 
             if ($request->has('public') && $request->public == 'true') {
-                if ($restaurant->estado !== 1) {
+                if ($restaurante->estado !== 1) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Restaurante no está abierto'
                     ], 404);
                 }
-                $restaurant->increment('contador_vistas');
+                $restaurante->increment('contador_vistas');
             }
+
+            $data = [
+                    'id' => $restaurante->id,
+                    'nombre_restaurante' => $restaurante->nombre_restaurante,
+                    'ubicacion' => $restaurante->ubicacion,
+                    'celular' => $restaurante->celular,
+                    'imagen' => $restaurante->imagen ? url('storage/' . $restaurante->imagen) : null,
+                    'tematica' => $restaurante->tematica,
+                    'estado' => $restaurante->estado,
+                    'estado_text' => $restaurante->estado ? 'ABIERTO' : 'CERRADO',
+                    'contador_vistas' => $restaurante->contador_vistas,
+                    'updated_at' => $restaurante->updated_at,
+                    'menu_id' => $restaurante->menu ? $restaurante->menu->id : null,
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'Detalles del restaurante',
-                'data' => [
-                    'id' => $restaurant->id,
-                    'nombre_restaurante' => $restaurant->nombre_restaurante,
-                    'ubicacion' => $restaurant->ubicacion,
-                    'celular' => $restaurant->celular,
-                    'tematica' => $restaurant->tematica,
-                    'estado' => $restaurant->estado,
-                    'estado_text' => $restaurant->estado ? 'ABIERTO' : 'CERRADO',
-                    'contador_vistas' => $restaurant->contador_vistas,
-                    'updated_at' => $restaurant->updated_at
-                ]
+                'data' => $data
             ], 200);
 
         } catch (\Exception $e) {
@@ -388,7 +441,6 @@ class RestauranteController extends Controller
     {
         try {
             $restaurant = Restaurante::findOrFail($id);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Estado del restaurante',

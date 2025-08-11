@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Controller;
+use App\Http\Middleware\IsOwnerMiddleware;
 
 class ProductoMenuController extends Controller
 {
@@ -149,10 +151,7 @@ class ProductoMenuController extends Controller
             ], 500);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Producto asociado al menú exitosamente',
-            'data' => [
+        $data = [
                 'id' => $producto->id,
                 'nombre_producto' => $producto->nombre_producto,
                 'precio' => $request->precio,
@@ -163,7 +162,12 @@ class ProductoMenuController extends Controller
                 'menu_id' => $menu->id,
                 'restaurante_id' => $restaurante_id,
                 "created_at" => $producto->created_at->format("Y-m-d H:i:s"),
-            ],
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto asociado al menú exitosamente',
+            'data' => $data
         ], 201);
     }
 
@@ -202,22 +206,23 @@ class ProductoMenuController extends Controller
                 'message' => 'Producto no encontrado en este menú'
             ], 404);
         }
+        $data = [
+            'producto_id' => $producto->id,
+            'nombre_producto' => $producto->nombre_producto,
+            'descripcion' => $producto->pivot->descripcion ?? null,
+            'precio' => (float) ($producto->pivot->precio ?? 0),
+            'imagen' => $producto->pivot->imagen ? url('storage/' . $producto->pivot->imagen) : null,
+            'tipo' => (int) ($producto->pivot->tipo ?? 0),
+            'disponible' => (bool) ($producto->pivot->disponible ?? true),
+            'menu_id' => (int) $menu->id,
+            'restaurante_id' => (int) $restaurante_id,
+            'created_at' => $producto->created_at->format('Y-m-d H:i:s'),
+        ];
 
         return response()->json([
             'success' => true,
             'message' => 'Producto encontrado en el menú',
-            'data' => [
-                'producto_id' => $producto->id,
-                'nombre_producto' => $producto->nombre_producto,
-                'descripcion' => $producto->pivot->descripcion ?? null,
-                'precio' => (float) ($producto->pivot->precio ?? 0),
-                'imagen' => $producto->pivot->imagen ? url('storage/' . $producto->pivot->imagen) : null,
-                'tipo' => (int) ($producto->pivot->tipo ?? 0),
-                'disponible' => (bool) ($producto->pivot->disponible ?? true),
-                'menu_id' => (int) $menu->id,
-                'restaurante_id' => (int) $restaurante_id,
-                'created_at' => $producto->created_at->format('Y-m-d H:i:s'),
-            ],
+            'data' => $data
         ], 200);
     }
 
@@ -343,21 +348,23 @@ class ProductoMenuController extends Controller
             $productoParaRespuesta = $productoActual;
         }
 
+        $data = [
+            'id' => (int) $productoParaRespuesta->id,
+            'menu_id' => (int) $menu->id,
+            'nombre_producto' => (string) $productoParaRespuesta->nombre_producto,
+            'precio' => (float) $request->input('precio'),
+            'imagen' => $path ? url('storage/' . $path) : null,
+            'descripcion' => $request->input('descripcion') !== null ? (string) $request->input('descripcion') : null,
+            'tipo' => (int) $request->input('tipo'),
+            'disponible' => (bool) $request->input('disponible', true),
+            'restaurante_id' => (int) $restaurante_id,
+            'updated_at' => now()->format('Y-m-d H:i:s'),
+        ];
+
         return response()->json([
             'success' => true,
             'message' => 'Producto actualizado correctamente',
-            'data' => [
-                'id' => (int) $productoParaRespuesta->id,
-                'menu_id' => (int) $menu->id,
-                'nombre_producto' => (string) $productoParaRespuesta->nombre_producto,
-                'precio' => (float) $request->input('precio'),
-                'imagen' => $path ? url('storage/' . $path) : null,
-                'descripcion' => $request->input('descripcion') !== null ? (string) $request->input('descripcion') : null,
-                'tipo' => (int) $request->input('tipo'),
-                'disponible' => (bool) $request->input('disponible', true),
-                'restaurante_id' => (int) $restaurante_id,
-                'updated_at' => now()->format('Y-m-d H:i:s'),
-            ],
+            'data' => $data
         ], 200);
     }
 

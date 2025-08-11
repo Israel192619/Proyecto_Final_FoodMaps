@@ -18,7 +18,7 @@ class MenuController extends Controller
         if (!$restaurante) {
             return response()->json([
                 'success' => false,
-                'message' => 'Restaurante no encontrado',
+                'mensaje' => 'Restaurante no encontrado',
             ], 404);
         }
 
@@ -26,7 +26,7 @@ class MenuController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Lista de menús del restaurante',
+            'mensaje' => 'Lista de menús del restaurante',
             'data' => $menus,
         ]);
     }
@@ -40,17 +40,23 @@ class MenuController extends Controller
         if (!$restaurante) {
             return response()->json([
                 'success' => false,
-                'message' => 'Restaurante no encontrado',
+                'mensaje' => 'Restaurante no encontrado',
             ], 404);
         }
-
+        $tieneMenu = $restaurante->menu;
+        if($tieneMenu){
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Este restaurante ya tiene un menú asignado',
+            ],400);
+        }
         $menu = new Menu();
         $menu->restaurante_id = $restaurante_id;
         $menu->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Menú creado automáticamente',
+            'mensaje' => 'Menú creado automáticamente',
             'data' => $menu,
         ], 201);
     }
@@ -67,13 +73,13 @@ class MenuController extends Controller
         if (!$menu) {
             return response()->json([
                 'success' => false,
-                'message' => 'Menú no encontrado para este restaurante',
+                'mensaje' => 'Menú no encontrado para este restaurante',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Menú encontrado',
+            'mensaje' => 'Menú encontrado',
             'data' => $menu,
         ], 200);
     }
@@ -85,7 +91,7 @@ class MenuController extends Controller
     {
         return response()->json([
             'success' => false,
-            'message' => 'Aun no puede actualizar un menu',
+            'mensaje' => 'Aun no puede actualizar un menu',
         ], 400);
     }
 
@@ -96,7 +102,7 @@ class MenuController extends Controller
     {
         return response()->json([
             'success' => false,
-            'message' => 'Aun no puede eliminar un menu',
+            'mensaje' => 'Aun no puede eliminar un menu',
         ], 400);
     }
 }
