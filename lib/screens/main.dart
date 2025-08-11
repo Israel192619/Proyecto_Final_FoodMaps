@@ -5,7 +5,6 @@ import 'login_screen.dart';
 import 'register_screen.dart';
 import 'cliente/maps_cli_activity.dart';
 import 'dueño/maps_due_activity.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import '../config/theme_provider.dart';

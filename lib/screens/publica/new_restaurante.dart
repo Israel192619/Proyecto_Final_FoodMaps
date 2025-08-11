@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -11,9 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:convert';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:cases/config/config.dart';
-import 'package:cases/screens/dueño/maps_due_activity.dart';
 import 'package:provider/provider.dart';
 import 'package:cases/config/theme_provider.dart';
 
@@ -185,7 +182,7 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _SeleccionarUbicacionMapaScreen(
+        builder: (context) => SeleccionarUbicacionMapaScreen(
           initialPosition: initialPosition,
           initialZoom: _selectedZoom ?? 18,
         ),
@@ -230,18 +227,39 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     );
 
     try {
-      // Crear la solicitud multipart
+      // --- NUEVO: Actualizar rol del usuario a "Dueño" antes de registrar restaurante ---
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      print('[VISTA NEWREST] Token obtenido: $token');
-      var request = http.MultipartRequest(
+      final actualizarUsuarioUrl = AppConfig.getApiUrl(AppConfig.actualizarUsuarioEndpoint(_userId!));
+      print('[VISTA NEWREST] Actualizando rol usuario: $actualizarUsuarioUrl');
+      final putResponse = await http.put(
+        Uri.parse(actualizarUsuarioUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'rol': 'Dueño'}),
+      );
+      print('[VISTA NEWREST] PUT usuario statusCode: ${putResponse.statusCode}');
+      print('[VISTA NEWREST] PUT usuario body: ${putResponse.body}');
+      if (putResponse.statusCode != 200) {
+        Navigator.of(context, rootNavigator: true).pop();
+        _mostrarError('No se pudo actualizar el rol del usuario. Intente nuevamente.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Crear la solicitud multipart
+      final request = http.MultipartRequest(
         'POST',
         Uri.parse(AppConfig.getRegistrarRestauranteUrl()),
       );
+
+      // --- CORREGIDO: El header debe ser 'authorization' en minúsculas ---
       if (token != null && token.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $token';
-        // NO agregues Content-Type aquí
+        request.headers['authorization'] = 'Bearer $token';
       }
+      // Elimina el header 'Content-Type' aquí, lo maneja MultipartRequest automáticamente
 
       // Agregar campos de texto
       request.fields.addAll({
@@ -747,16 +765,16 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
 }
 
 // --- Widget para seleccionar ubicación en el mapa ---
-class _SeleccionarUbicacionMapaScreen extends StatefulWidget {
+class SeleccionarUbicacionMapaScreen extends StatefulWidget {
   final LatLng initialPosition;
   final double initialZoom;
-  const _SeleccionarUbicacionMapaScreen({required this.initialPosition, required this.initialZoom});
+  const SeleccionarUbicacionMapaScreen({required this.initialPosition, required this.initialZoom});
 
   @override
-  State<_SeleccionarUbicacionMapaScreen> createState() => _SeleccionarUbicacionMapaScreenState();
+  State<SeleccionarUbicacionMapaScreen> createState() => _SeleccionarUbicacionMapaScreenState();
 }
 
-class _SeleccionarUbicacionMapaScreenState extends State<_SeleccionarUbicacionMapaScreen> {
+class _SeleccionarUbicacionMapaScreenState extends State<SeleccionarUbicacionMapaScreen> {
   LatLng? _pickedLatLng;
   double _zoom = 18;
   GoogleMapController? _controller;

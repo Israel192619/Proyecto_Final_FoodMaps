@@ -1,6 +1,6 @@
 // lib/config/config.dart
 class AppConfig {
-  static const String apiBaseUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api';
+  static const String apiBaseUrl = 'http://192.168.100.9:8081/FoodMaps_API_I/FoodMaps_API/public/api';
 
   // Endpoints
   static const String loginEndpoint = '/auth/login';
@@ -26,8 +26,10 @@ class AppConfig {
   }
 
   // --- WebSocket para estados en tiempo real ---
+  // Revisa que la clave "app/f70zdychxrkeuixgvhwz" coincida con la configurada en tu backend (pusher/reverb)
   static const String websocketBaseUrl = 'ws://192.168.100.9:9000';
-  static const String websocketFullUrl = 'ws://192.168.100.9:9000/app/l1zohmfj7ixc9fccl6ef?protocol=7&client=js&version=7.0.3&flash=false';
+  static const String websocketFullUrl = 'ws://192.168.100.9:9000/app/f70zdychxrkeuixgvhwz?protocol=7&client=js&version=7.0.3&flash=false';
+  // static const String websocketFullUrl = 'ws://192.168.100.9:9000/app/l1zohmfj7ixc9fccl6ef?protocol=7&client=js&version=7.0.3&flash=false';
 
   static String getWebSocketUrl() {
     print('[WSO][RUTA] getWebSocketUrl: $websocketFullUrl');
@@ -43,7 +45,7 @@ class AppConfig {
 
   // Endpoint para actualizar estado por WebSocket (testing)
   static String websocketPutStatusEndpoint(int id) {
-    final ruta = '$websocketBaseUrl/restaurants/$id/status';
+    final ruta = '$websocketBaseUrl/restaurantes/$id/status';
     print('[WSO][RUTA] websocketPutStatusEndpoint: $ruta');
     return ruta;
   }
@@ -62,4 +64,10 @@ class AppConfig {
     print('[WSO][RUTA] getApiUrl: $ruta');
     return ruta;
   }
+
+  // Endpoint para actualizar usuario por ID (PUT)
+  static String actualizarUsuarioEndpoint(int id) => '/users/$id';
+
+  // Endpoint para actualizar restaurante (dueño)
+  static String actualizarRestauranteEndpoint(int id) => '/restaurantes/$id';
 }

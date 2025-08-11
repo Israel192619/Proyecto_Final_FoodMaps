@@ -43,8 +43,8 @@ class _MapsPageState extends State<MapsPage> {
     super.initState();
     final isDesktop = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
-         defaultTargetPlatform == TargetPlatform.linux ||
-         defaultTargetPlatform == TargetPlatform.macOS);
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS);
 
     if (isDesktop) {
       print('[MAPS_PAGE] initState: escritorio detectado, solo fetch de restaurantes');
@@ -101,8 +101,8 @@ class _MapsPageState extends State<MapsPage> {
     // Detectar escritorio
     final isDesktop = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
-         defaultTargetPlatform == TargetPlatform.linux ||
-         defaultTargetPlatform == TargetPlatform.macOS);
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS);
 
     print('[MAPS_PAGE] Plataforma detectada: ${defaultTargetPlatform.toString()}, isDesktop=$isDesktop, kIsWeb=$kIsWeb');
     print('[MAPS_PAGE] _restaurantesData.length=${_restaurantesData.length}');
@@ -335,8 +335,8 @@ class _MapsPageState extends State<MapsPage> {
     final int restaurantId = obj['restaurante_id'] is int
         ? obj['restaurante_id']
         : (obj['id'] is int
-            ? obj['id']
-            : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
+        ? obj['id']
+        : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
     final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
     final String phone = obj['celular']?.toString() ?? '';
     final String imageUrl = obj['imagen']?.toString() ?? '';
@@ -530,157 +530,157 @@ class MapsDesktopTable extends StatelessWidget {
       body: restaurantesData.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-              padding: EdgeInsets.only(bottom: bottomNavHeight), // Ajusta el padding inferior dinámicamente
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: minTableWidth,
-                          maxWidth: cardWidth,
-                        ),
-                        child: DataTable(
-                          columnSpacing: 32,
-                          headingRowColor: MaterialStateProperty.all(
-                            isDark ? Colors.red.shade900 : Colors.red.shade100,
-                          ),
-                          dataRowMinHeight: 64,
-                          dataRowMaxHeight: 90,
-                          dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                            (Set<MaterialState> states) {
-                              if (states.contains(MaterialState.selected)) {
-                                return Colors.red.withOpacity(0.08);
-                              }
-                              return isDark
-                                  ? Colors.grey[850]
-                                  : Colors.white;
-                            },
-                          ),
-                          columns: [
-                            const DataColumn(label: Text('Logo', style: TextStyle(fontWeight: FontWeight.bold))),
-                            const DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
-                            const DataColumn(label: Text('Ubicación', style: TextStyle(fontWeight: FontWeight.bold))),
-                            if (showEstado)
-                              const DataColumn(label: Text('Estado', style: TextStyle(fontWeight: FontWeight.bold))),
-                            const DataColumn(label: Text('Ver Menú', style: TextStyle(fontWeight: FontWeight.bold))),
-                          ],
-                          rows: restaurantesData.map((rest) {
-                            final imageUrl = rest['imagen'];
-                            final nombre = rest['nombre_restaurante'] ?? '';
-                            final ubicacion = rest['ubicacion'] ?? '';
-                            final estado = rest['estado'] is int
-                                ? rest['estado']
-                                : int.tryParse(rest['estado'].toString()) ?? 1;
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: imageUrl != null && imageUrl.toString().isNotEmpty
-                                          ? Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover)
-                                          : Container(
-                                              width: 60,
-                                              height: 60,
-                                              color: Colors.grey[300],
-                                              child: const Icon(Icons.image, size: 32, color: Colors.grey),
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                    child: Text(
-                                      nombre,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : Colors.red.shade700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                    child: ElevatedButton.icon(
-                                      icon: const Icon(Icons.location_on, color: Colors.red, size: 18),
-                                      label: const Text('Ver en Google Maps'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red.shade50,
-                                        foregroundColor: Colors.red.shade700,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      ),
-                                      onPressed: ubicacion.toString().contains(',')
-                                          ? () => _abrirGoogleMaps(context, ubicacion)
-                                          : null,
-                                    ),
-                                  ),
-                                ),
-                                if (showEstado)
-                                  DataCell(
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            estado == 1 ? Icons.check_circle : Icons.cancel,
-                                            color: estado == 1 ? Colors.green : Colors.red,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            estado == 1 ? 'Abierto' : 'Cerrado',
-                                            style: TextStyle(
-                                              color: estado == 1 ? Colors.green : Colors.red,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                DataCell(
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                    child: ElevatedButton.icon(
-                                      onPressed: onMenuPressed != null
-                                          ? () => onMenuPressed!(rest)
-                                          : null,
-                                      icon: const Icon(Icons.restaurant_menu, size: 18),
-                                      label: const Text('Ver Menú'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
+        padding: EdgeInsets.only(bottom: bottomNavHeight), // Ajusta el padding inferior dinámicamente
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: minTableWidth,
+                    maxWidth: cardWidth,
+                  ),
+                  child: DataTable(
+                    columnSpacing: 32,
+                    headingRowColor: MaterialStateProperty.all(
+                      isDark ? Colors.red.shade900 : Colors.red.shade100,
                     ),
+                    dataRowMinHeight: 64,
+                    dataRowMaxHeight: 90,
+                    dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                          (Set<MaterialState> states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return Colors.red.withOpacity(0.08);
+                        }
+                        return isDark
+                            ? Colors.grey[850]
+                            : Colors.white;
+                      },
+                    ),
+                    columns: [
+                      const DataColumn(label: Text('Logo', style: TextStyle(fontWeight: FontWeight.bold))),
+                      const DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
+                      const DataColumn(label: Text('Ubicación', style: TextStyle(fontWeight: FontWeight.bold))),
+                      if (showEstado)
+                        const DataColumn(label: Text('Estado', style: TextStyle(fontWeight: FontWeight.bold))),
+                      const DataColumn(label: Text('Ver Menú', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                    rows: restaurantesData.map((rest) {
+                      final imageUrl = rest['imagen'];
+                      final nombre = rest['nombre_restaurante'] ?? '';
+                      final ubicacion = rest['ubicacion'] ?? '';
+                      final estado = rest['estado'] is int
+                          ? rest['estado']
+                          : int.tryParse(rest['estado'].toString()) ?? 1;
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: imageUrl != null && imageUrl.toString().isNotEmpty
+                                    ? Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover)
+                                    : Container(
+                                  width: 60,
+                                  height: 60,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.image, size: 32, color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                nombre,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.red.shade700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.location_on, color: Colors.red, size: 18),
+                                label: const Text('Ver en Google Maps'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade50,
+                                  foregroundColor: Colors.red.shade700,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                onPressed: ubicacion.toString().contains(',')
+                                    ? () => _abrirGoogleMaps(context, ubicacion)
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          if (showEstado)
+                            DataCell(
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      estado == 1 ? Icons.check_circle : Icons.cancel,
+                                      color: estado == 1 ? Colors.green : Colors.red,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      estado == 1 ? 'Abierto' : 'Cerrado',
+                                      style: TextStyle(
+                                        color: estado == 1 ? Colors.green : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          DataCell(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: ElevatedButton.icon(
+                                onPressed: onMenuPressed != null
+                                    ? () => onMenuPressed!(rest)
+                                    : null,
+                                icon: const Icon(Icons.restaurant_menu, size: 18),
+                                label: const Text('Ver Menú'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
     );
   }
 }

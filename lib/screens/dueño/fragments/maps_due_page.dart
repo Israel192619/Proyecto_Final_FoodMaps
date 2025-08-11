@@ -685,5 +685,12 @@ class _MapsDuePageState extends State<MapsDuePage> {
       showEstado: true,
     );
   }
-}
 
+  // NUEVO: Método para mostrar mensajes recibidos por WebSocket (debug)
+  void mostrarMensajeWebSocket(String mensaje) {
+    print('[WSO][MAPS_DUE_PAGE] Mensaje recibido por WebSocket: $mensaje');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('WSO: $mensaje')),
+    );
+  }
+}

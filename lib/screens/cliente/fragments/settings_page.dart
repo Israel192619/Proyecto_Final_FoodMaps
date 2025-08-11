@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../../config/theme_provider.dart';
 import '../../../config/config.dart';
-import '../../publica/new_restaurante.dart'; // Agrega este import
+import '../../publica/new_restaurante.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -168,9 +168,7 @@ class SettingsPage extends StatelessWidget {
                                     onPressed: () {
                                       Navigator.push(
                                         context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const NewRestauranteScreen(),
-                                        ),
+                                        MaterialPageRoute(builder: (context) => const NewRestauranteScreen()),
                                       );
                                     },
                                     icon: const Icon(Icons.add_business),

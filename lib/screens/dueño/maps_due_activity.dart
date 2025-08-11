@@ -274,6 +274,13 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
   }
 
   void _connectWebSocketChannel() {
+    // Cierra el canal anterior si existe antes de crear uno nuevo
+    if (_channel != null) {
+      print('[WSO] Cerrando canal WebSocket anterior antes de reconectar');
+      _channel?.sink.close();
+      _channel = null;
+    }
+
     final wsUrl = AppConfig.getWebSocketUrl();
     print('[WSO][RUTA] WebSocket: $wsUrl');
     _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
@@ -281,11 +288,13 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     final subscribeMsg = {
       "event": "pusher:subscribe",
       "data": {
-        "channel": "restaurants"
+        "channel": "restaurantes"
       }
     };
     print('[WSO] Enviando mensaje de suscripción: $subscribeMsg');
     _channel?.sink.add(jsonEncode(subscribeMsg));
+
+    bool suscripcionExitosa = false;
 
     _channel?.stream.listen(
       (message) {
@@ -303,6 +312,12 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
               _channel?.sink.add(jsonEncode({'event': 'pusher:pong', 'data': {}}));
             } else if (data['event'] == 'pusher_internal:subscription_succeeded') {
               print('[WSO] Suscripción exitosa al canal: ${data['channel']}');
+              suscripcionExitosa = true;
+            } else if (data['event'] == 'pusher_internal:subscription_error') {
+              print('[WSO] Error al suscribirse al canal: ${data['channel']}');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error al suscribirse al canal WebSocket: ${data['channel']}')),
+              );
             } else {
               print('[WSO] Evento no relevante para estado: ${data['event']}');
             }
@@ -315,9 +330,17 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
       },
       onError: (error) {
         print('[WSO] Error en la conexión WebSocket: $error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error en la conexión WebSocket: $error')),
+        );
       },
       onDone: () {
         print('[WSO] Conexión WebSocket cerrada');
+        if (!suscripcionExitosa) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('La suscripción al canal WebSocket no fue exitosa')),
+          );
+        }
       },
     );
   }
@@ -347,6 +370,7 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
       print('[WSO] App en segundo plano o bloqueada, cerrando WebSocket');
       _channel?.sink.close();
+      _channel = null;
     }
   }
 

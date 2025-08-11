@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../config/config.dart';
 import '../../../config/theme_provider.dart';
+import '../../publica/new_restaurante.dart' show SeleccionarUbicacionMapaScreen;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class SettingsDuenoPage extends StatelessWidget {
   final int restauranteId;
@@ -51,9 +53,9 @@ class SettingsDuenoPage extends StatelessWidget {
                               child: Text(
                                 'Configuración del Restaurante',
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.red.shade700,
-                                    ),
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.red.shade700,
+                                ),
                               ),
                             ),
                           ],
@@ -94,7 +96,7 @@ class SettingsDuenoPage extends StatelessWidget {
                           context,
                           icon: Icons.location_on,
                           title: 'Actualizar ubicación',
-                          onTap: () => _actualizarUbicacion(),
+                          onTap: () => _actualizarUbicacion(context),
                         ),
                         _buildSettingItem(
                           context,
@@ -188,8 +190,49 @@ class SettingsDuenoPage extends StatelessWidget {
     // Implementar lógica para cambiar imagen
   }
 
-  void _actualizarUbicacion() {
-    // Implementar lógica para actualizar ubicación
+  void _actualizarUbicacion(BuildContext context) async {
+    LatLng initialPosition = LatLng(-17.382202, -66.151789);
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SeleccionarUbicacionMapaScreen(
+          initialPosition: initialPosition,
+          initialZoom: 18,
+        ),
+      ),
+    );
+    if (result != null && result is Map) {
+      final LatLng latlng = result['latlng'];
+      final double zoom = result['zoom'];
+      final ubicacion = '${latlng.latitude},${latlng.longitude},${zoom.toStringAsFixed(2)}';
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      final restauranteId = prefs.getInt('restaurante_id') ?? this.restauranteId;
+      final url = '${AppConfig.apiBaseUrl}${AppConfig.actualizarRestauranteEndpoint(restauranteId)}';
+      try {
+        final response = await http.put(
+          Uri.parse(url),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'ubicacion': ubicacion}),
+        );
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ubicación actualizada correctamente')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al actualizar ubicación: ${response.statusCode}')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de red al actualizar ubicación')),
+        );
+      }
+    }
   }
 
   void _mostrarSeguridad() {
@@ -226,6 +269,9 @@ class SettingsDuenoPage extends StatelessWidget {
       final token = prefs.getString('auth_token');
       // Guarda el modo oscuro antes de limpiar
       final mapTheme = prefs.getString('map_theme');
+      // Borra restaurante seleccionado
+      await prefs.remove('restaurante_id');
+      await prefs.remove('restaurante_seleccionado');
       // Llamada a la API para cerrar sesión
       if (token != null && token.isNotEmpty) {
         try {

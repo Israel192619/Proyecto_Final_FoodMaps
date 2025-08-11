@@ -4,7 +4,6 @@ import 'package:cases/constants/assets.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:cases/config/safe_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cases/config/config.dart';
 
@@ -120,114 +119,78 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setInt('userRole', roleId);
         await prefs.setInt('user_id', userId);
 
-        // --- NUEVO: Obtener restaurantes si no hay en SharedPreferences ---
+        // --- MODIFICADO: Obtener restaurantes desde API si es dueño ---
         if (roleId == 2) {
-          String? restaurantesPrefs = prefs.getString('restaurantes');
-          if (restaurantesPrefs == null || restaurantesPrefs.isEmpty) {
-            print('[VISTA LOGIN] No hay restaurantes en SharedPreferences, obteniendo desde API...');
-            final restaurantesUrl = '${AppConfig.apiBaseUrl}/api/restaurantes';
-            final restaurantesResp = await http.get(
-              Uri.parse(restaurantesUrl),
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-            );
-            print('[VISTA LOGIN] GET /api/restaurantes status: ${restaurantesResp.statusCode}');
-            print('[VISTA LOGIN] GET /api/restaurantes body: ${restaurantesResp.body}');
-            if (restaurantesResp.statusCode == 200) {
-              final restaurantesData = jsonDecode(restaurantesResp.body);
-              List<dynamic> restaurantesList = [];
-              if (restaurantesData is Map && restaurantesData.containsKey('data')) {
-                restaurantesList = restaurantesData['data'] is List
-                  ? restaurantesData['data']
-                  : [];
-              }
-              await prefs.setString('restaurantes', jsonEncode(restaurantesList));
-              print('[VISTA LOGIN] Restaurantes guardados en SharedPreferences: $restaurantesList');
+          final restaurantesUrl = '${AppConfig.apiBaseUrl}/restaurantes';
+          final restaurantesResp = await http.get(
+            Uri.parse(restaurantesUrl),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          );
+          print('[VISTA LOGIN] GET /api/restaurantes status: ${restaurantesResp.statusCode}');
+          print('[VISTA LOGIN] GET /api/restaurantes body: ${restaurantesResp.body}');
+          if (restaurantesResp.statusCode == 200) {
+            final restaurantesData = jsonDecode(restaurantesResp.body);
+            List<dynamic> restaurantesList = [];
+            if (restaurantesData is Map && restaurantesData.containsKey('data')) {
+              restaurantesList = restaurantesData['data'] is List
+                ? restaurantesData['data']
+                : [];
             }
-          }
-        }
+            await prefs.setString('restaurantes', jsonEncode(restaurantesList));
+            print('[VISTA LOGIN] Restaurantes guardados en SharedPreferences: $restaurantesList');
 
-        // --- Manejo de múltiples restaurantes para DUEÑO ---
-        if (roleId == 2) {
-          final restaurantes = prefs.getString('restaurantes') != null
-              ? jsonDecode(prefs.getString('restaurantes')!)
-              : data['restaurantes'] ?? data['restaurante'];
-          print('[VISTA LOGIN] Restaurantes obtenidos del backend o SharedPreferences: $restaurantes');
-
-          // Guardar la lista de restaurantes SIEMPRE que existan (aunque sea uno solo)
-          if (restaurantes is List && restaurantes.isNotEmpty) {
-            await prefs.setString('restaurantes', jsonEncode(restaurantes));
-          } else if (restaurantes is Map) {
-            await prefs.setString('restaurantes', jsonEncode([restaurantes]));
-          } else {
-            await prefs.remove('restaurantes');
-          }
-
-          if (restaurantes is List && restaurantes.length > 1) {
-            // Verifica si ya hay uno seleccionado en preferencias
-            final savedRestId = prefs.getInt('restaurante_id');
-            if (savedRestId != null && restaurantes.any((r) => r['id'] == savedRestId)) {
-              final selectedRest = restaurantes.firstWhere((r) => r['id'] == savedRestId);
-              await prefs.setString('restaurante_seleccionado', jsonEncode(selectedRest));
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/dueno_home',
-                (route) => false,
-                arguments: selectedRest,
-              );
-            } else {
-              // Redirige a selector y guarda la selección
-              print('[VISTA LOGIN] [REDIR] Redirigiendo a /restaurante_selector');
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/restaurante_selector',
-                (route) => false,
-                arguments: restaurantes,
-              );
-              final selected = await Navigator.pushNamed(
-                context,
-                '/restaurante_selector',
-                arguments: restaurantes,
-              );
-              if (selected != null && selected is Map && selected['id'] != null) {
-                await prefs.setInt('restaurante_id', selected['id']);
-                await prefs.setString('restaurante_seleccionado', jsonEncode(selected));
+            // Manejo de selección y navegación
+            if (restaurantesList.length > 1) {
+              final savedRestId = prefs.getInt('restaurante_id');
+              if (savedRestId != null && restaurantesList.any((r) => r['id'] == savedRestId)) {
+                final selectedRest = restaurantesList.firstWhere((r) => r['id'] == savedRestId);
+                await prefs.setString('restaurante_seleccionado', jsonEncode(selectedRest));
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/dueno_home',
                   (route) => false,
-                  arguments: selected,
+                  arguments: selectedRest,
                 );
+              } else {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/restaurante_selector',
+                  (route) => false,
+                  arguments: restaurantesList,
+                );
+                final selected = await Navigator.pushNamed(
+                  context,
+                  '/restaurante_selector',
+                  arguments: restaurantesList,
+                );
+                if (selected != null && selected is Map && selected['id'] != null) {
+                  await prefs.setInt('restaurante_id', selected['id']);
+                  await prefs.setString('restaurante_seleccionado', jsonEncode(selected));
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/dueno_home',
+                    (route) => false,
+                    arguments: selected,
+                  );
+                }
               }
+              return;
+            } else if (restaurantesList.length == 1) {
+              await prefs.setInt('restaurante_id', restaurantesList[0]['id']);
+              await prefs.setString('restaurante_seleccionado', jsonEncode(restaurantesList[0]));
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/dueno_home',
+                (route) => false,
+                arguments: restaurantesList[0],
+              );
+              return;
             }
-            return;
-          } else if (restaurantes is List && restaurantes.length == 1) {
-            await prefs.setInt('restaurante_id', restaurantes[0]['id']);
-            await prefs.setString('restaurante_seleccionado', jsonEncode(restaurantes[0]));
-            print('[VISTA LOGIN] [REDIR] Redirigiendo a /dueno_home con restaurante único');
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/dueno_home',
-              (route) => false,
-              arguments: restaurantes[0],
-            );
-            return;
-          } else if (restaurantes is Map) {
-            await prefs.setInt('restaurante_id', restaurantes['id']);
-            await prefs.setString('restaurante_seleccionado', jsonEncode(restaurantes));
-            print('[VISTA LOGIN] [REDIR] Redirigiendo a /dueno_home con restaurante único (Map)');
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/dueno_home',
-              (route) => false,
-              arguments: restaurantes,
-            );
-            return;
           }
         }
-        // --- FIN NUEVO ---
 
         // Manejar diferentes respuestas del servidor
         switch (response.statusCode) {
