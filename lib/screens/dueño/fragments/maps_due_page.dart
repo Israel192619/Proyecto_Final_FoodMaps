@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import '../../../config/config.dart';
 import '../../../config/theme_provider.dart';
-import '../../cliente/fragments/maps_page.dart'; // Importa MapsDesktopTable
+import '../../cliente/fragments/maps_page.dart' show MapsUtils, MapsDesktopTable; // <-- Agrega MapsDesktopTable aquí
 import 'package:cases/constants/custom_info_window_controller.dart'; // Importa el controlador personalizado
 import 'package:google_map_custom_windows/google_map_custom_windows.dart'; // <-- Agrega este import
 import 'package:cases/constants/restaurant_info_window.dart'; // Reutiliza el mismo widget de info window
@@ -590,69 +590,96 @@ class _MapsDuePageState extends State<MapsDuePage> {
   void _actualizarMarcadores() {
     Set<Marker> filteredMarkers = {};
     for (var obj in _restaurantesData) {
-      final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
-      if (_estadoFiltro != -1 && estado != _estadoFiltro) continue;
-
-      final latLngStr = obj['ubicacion']?.toString();
-      double? lat, lng;
-      if (latLngStr != null && latLngStr.contains(',')) {
-        final parts = latLngStr.split(',');
-        lat = double.tryParse(parts[0]);
-        lng = double.tryParse(parts[1]);
-      }
-      if (lat == null || lng == null) {
-        print('[MAPS_DUE_PAGE] Restaurante sin coordenadas, solo tabla.');
-        continue;
-      }
-
-      final markerId = MarkerId(obj['id'].toString());
-      final icon = estado == 1
-          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-          : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-
-      final position = LatLng(lat, lng);
-      filteredMarkers.add(
-        Marker(
-          markerId: markerId,
-          position: position,
-          icon: icon,
-          onTap: () {
-            final imagenSafe = (obj['imagen'] ?? '').toString();
-            final infoWidget = RestaurantInfoWindow(
-              restaurantData: {
-                ...obj,
-                'imagen': imagenSafe,
-              },
-              onMenuPressed: () {
-                final int restaurantId = obj['restaurante_id'] is int
-                    ? obj['restaurante_id']
-                    : (obj['id'] is int
-                        ? obj['id']
-                        : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
-                final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
-                final String phone = obj['celular']?.toString() ?? '';
-                final String imageUrl = obj['imagen']?.toString() ?? '';
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MenuRestaurante(
-                      restaurantId: restaurantId,
-                      name: name,
-                      phone: phone,
-                      imageUrl: imageUrl,
-                    ),
-                  ),
-                );
-              },
-            );
-            _customController?.showInfoWindow([infoWidget], [position]);
-          },
-        ),
+      final marker = MapsUtils.createMarker(
+        obj: obj,
+        estadoFiltro: _estadoFiltro,
+        onMenuPressed: (rest) {
+          // ...navegación a menú...
+          final int restaurantId = rest['restaurante_id'] is int
+              ? rest['restaurante_id']
+              : (rest['id'] is int
+                  ? rest['id']
+                  : int.tryParse(rest['restaurante_id']?.toString() ?? rest['id']?.toString() ?? '0') ?? 0);
+          final String name = rest['nom_rest'] ?? rest['nombre_restaurante'] ?? '';
+          final String phone = rest['celular']?.toString() ?? '';
+          final String imageUrl = rest['imagen']?.toString() ?? '';
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MenuRestaurante(
+                restaurantId: restaurantId,
+                name: name,
+                phone: phone,
+                imageUrl: imageUrl,
+              ),
+            ),
+          );
+        },
+        context: context,
+        customController: _customController!.customController,
       );
+      if (marker != null) filteredMarkers.add(marker);
     }
     setState(() {
       _allMarkers = filteredMarkers;
     });
+  }
+
+  Marker? _crearMarcador(Map<String, dynamic> obj) {
+    final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
+    if (_estadoFiltro != -1 && estado != _estadoFiltro) return null;
+
+    final latLngStr = obj['ubicacion']?.toString();
+    double? lat, lng;
+    if (latLngStr != null && latLngStr.contains(',')) {
+      final parts = latLngStr.split(',');
+      lat = double.tryParse(parts[0]);
+      lng = double.tryParse(parts[1]);
+    }
+    if (lat == null || lng == null) return null;
+
+    final markerId = MarkerId(obj['id'].toString());
+    final icon = estado == 1
+        ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+        : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+    final position = LatLng(lat, lng);
+    return Marker(
+      markerId: markerId,
+      position: position,
+      icon: icon,
+      onTap: () {
+        final imagenSafe = (obj['imagen'] ?? '').toString();
+        final infoWidget = RestaurantInfoWindow(
+          restaurantData: {
+            ...obj,
+            'imagen': imagenSafe,
+          },
+          onMenuPressed: () {
+            final int restaurantId = obj['restaurante_id'] is int
+                ? obj['restaurante_id']
+                : (obj['id'] is int
+                    ? obj['id']
+                    : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
+            final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
+            final String phone = obj['celular']?.toString() ?? '';
+            final String imageUrl = obj['imagen']?.toString() ?? '';
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MenuRestaurante(
+                  restaurantId: restaurantId,
+                  name: name,
+                  phone: phone,
+                  imageUrl: imageUrl,
+                ),
+              ),
+            );
+          },
+        );
+        _customController?.showInfoWindow([infoWidget], [position]);
+      },
+    );
   }
 
   Widget _buildDesktopTable(BuildContext context) {
@@ -686,7 +713,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
     );
   }
 
-  // NUEVO: Método para mostrar mensajes recibidos por WebSocket (debug)
+  // NUEVO: Metodo para mostrar mensajes recibidos por WebSocket (debug)
   void mostrarMensajeWebSocket(String mensaje) {
     print('[WSO][MAPS_DUE_PAGE] Mensaje recibido por WebSocket: $mensaje');
     ScaffoldMessenger.of(context).showSnackBar(

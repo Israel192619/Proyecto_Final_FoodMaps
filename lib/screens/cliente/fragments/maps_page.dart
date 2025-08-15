@@ -285,42 +285,48 @@ class _MapsPageState extends State<MapsPage> {
   void _actualizarMarcadores() {
     _markers.clear();
     for (var obj in _restaurantesData) {
-      final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
-      if (_estadoFiltro != -1 && estado != _estadoFiltro) continue;
-
-      final latLngStr = obj['ubicacion']?.toString();
-      double? lat, lng;
-      if (latLngStr != null && latLngStr.contains(',')) {
-        final parts = latLngStr.split(',');
-        lat = double.tryParse(parts[0]);
-        lng = double.tryParse(parts[1]);
-      }
-      if (lat == null || lng == null) {
-        print('[MAPS_PAGE] Restaurante sin coordenadas, solo tabla.');
-        continue;
-      }
-
-      final markerId = MarkerId(obj['id'].toString());
-      final icon = estado == 1
-          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-          : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-
-      final position = LatLng(lat, lng);
-      _markers.add(
-        Marker(
-          markerId: markerId,
-          position: position,
-          icon: icon,
-          onTap: () {
-            infoPositions = [position];
-            infoWidgets = [_buildCustomInfoWindow(obj)];
-            setState(() {});
-            _customController.addInfoWindow!(infoWidgets, infoPositions);
-          },
-        ),
+      final marker = MapsUtils.createMarker(
+        obj: obj,
+        estadoFiltro: _estadoFiltro,
+        onMenuPressed: _openDetail,
+        context: context,
+        customController: _customController,
       );
+      if (marker != null) _markers.add(marker);
     }
     setState(() {});
+  }
+
+  Marker? _crearMarcador(Map<String, dynamic> obj) {
+    final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
+    if (_estadoFiltro != -1 && estado != _estadoFiltro) return null;
+
+    final latLngStr = obj['ubicacion']?.toString();
+    double? lat, lng;
+    if (latLngStr != null && latLngStr.contains(',')) {
+      final parts = latLngStr.split(',');
+      lat = double.tryParse(parts[0]);
+      lng = double.tryParse(parts[1]);
+    }
+    if (lat == null || lng == null) return null;
+
+    final markerId = MarkerId(obj['id'].toString());
+    final icon = estado == 1
+        ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+        : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+    final position = LatLng(lat, lng);
+    return Marker(
+      markerId: markerId,
+      position: position,
+      icon: icon,
+      onTap: () {
+        infoPositions = [position];
+        infoWidgets = [_buildCustomInfoWindow(obj)];
+        setState(() {});
+        _customController.addInfoWindow!(infoWidgets, infoPositions);
+      },
+    );
   }
 
   Widget _buildCustomInfoWindow(Map<String, dynamic> restaurantData) {
@@ -684,3 +690,51 @@ class MapsDesktopTable extends StatelessWidget {
     );
   }
 }
+
+class MapsUtils {
+  static LatLng? decodeLatLng(String? ubicacion) {
+    if (ubicacion != null && ubicacion.contains(',')) {
+      final parts = ubicacion.split(',');
+      final lat = double.tryParse(parts[0]);
+      final lng = double.tryParse(parts[1]);
+      if (lat != null && lng != null) return LatLng(lat, lng);
+    }
+    return null;
+  }
+
+  static Marker? createMarker({
+    required Map<String, dynamic> obj,
+    required int estadoFiltro,
+    required Function(Map<String, dynamic>) onMenuPressed,
+    required BuildContext context,
+    required GoogleMapCustomWindowController customController,
+  }) {
+    final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
+    if (estadoFiltro != -1 && estado != estadoFiltro) return null;
+
+    final latLng = decodeLatLng(obj['ubicacion']?.toString());
+    if (latLng == null) return null;
+
+    final markerId = MarkerId(obj['id'].toString());
+    final icon = estado == 1
+        ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+        : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+    return Marker(
+      markerId: markerId,
+      position: latLng,
+      icon: icon,
+      onTap: () {
+        final infoWidget = RestaurantInfoWindow(
+          restaurantData: {
+            ...obj,
+            'imagen': (obj['imagen'] ?? '').toString(),
+          },
+          onMenuPressed: () => onMenuPressed(obj),
+        );
+        customController.addInfoWindow!([infoWidget], [latLng]);
+      },
+    );
+  }
+}
+
