@@ -60,7 +60,7 @@ class Restaurante extends Model
                                     'id_restaurante' => $restaurante->id,
                                     'evento' => 'ActualizacionEstadoRestaurante',
                                     'driver' => $driverBroadcast,
-                                    'canal' => 'restaurants'
+                                    'canal' => 'restaurante'
                                 ]);
                             } catch (\Exception $eBroadcast) {
                                 Log::error('Error al emitir el evento vía WebSocket', [

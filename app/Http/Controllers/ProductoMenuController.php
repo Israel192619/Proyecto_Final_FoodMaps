@@ -45,8 +45,8 @@ class ProductoMenuController extends Controller
                 'producto_id' => $producto->id,
                 'menu_id' => $menu->id,
                 'nombre_producto' => $producto->nombre_producto,
-                 'precio' => isset($producto->pivot->precio) ? (float) $producto->pivot->precio : null,
-                'imagen' => $producto->pivot->imagen ? url('storage/' . $producto->pivot->imagen) : null,
+                'precio' => isset($producto->pivot->precio) ? (float) $producto->pivot->precio : null,
+                'imagen' => $producto->pivot->imagen ? $producto->pivot->imagen : null,
                 'descripcion' => $producto->pivot->descripcion,
                 'tipo' => isset($producto->pivot->tipo) ? (int) $producto->pivot->tipo : null,
                 'disponible' => $producto->pivot->disponible,
@@ -152,10 +152,10 @@ class ProductoMenuController extends Controller
         }
 
         $data = [
-                'id' => $producto->id,
+                'producto_id' => $producto->id,
                 'nombre_producto' => $producto->nombre_producto,
                 'precio' => $request->precio,
-                'imagen' => $path ? url('storage/' . $path) : null,
+                'imagen' => $path ?  $path : null,
                 'descripcion' => $request->descripcion,
                 'tipo' => $request->tipo,
                 'disponible' => $request->disponible ?? 1,
@@ -211,7 +211,7 @@ class ProductoMenuController extends Controller
             'nombre_producto' => $producto->nombre_producto,
             'descripcion' => $producto->pivot->descripcion ?? null,
             'precio' => (float) ($producto->pivot->precio ?? 0),
-            'imagen' => $producto->pivot->imagen ? url('storage/' . $producto->pivot->imagen) : null,
+            'imagen' => $producto->pivot->imagen ? $producto->pivot->imagen : null,
             'tipo' => (int) ($producto->pivot->tipo ?? 0),
             'disponible' => (bool) ($producto->pivot->disponible ?? true),
             'menu_id' => (int) $menu->id,
@@ -347,13 +347,15 @@ class ProductoMenuController extends Controller
 
             $productoParaRespuesta = $productoActual;
         }
+        $productoConPivot = $menu->productos()->where('productos.id', $productoParaRespuesta->id)->first();
+        event(new \App\Events\ActualizarDisponibilidadProducto($productoConPivot));
 
         $data = [
-            'id' => (int) $productoParaRespuesta->id,
+            'producto_id' => (int) $productoParaRespuesta->id,
             'menu_id' => (int) $menu->id,
             'nombre_producto' => (string) $productoParaRespuesta->nombre_producto,
             'precio' => (float) $request->input('precio'),
-            'imagen' => $path ? url('storage/' . $path) : null,
+            'imagen' => $path ? $path : null,
             'descripcion' => $request->input('descripcion') !== null ? (string) $request->input('descripcion') : null,
             'tipo' => (int) $request->input('tipo'),
             'disponible' => (bool) $request->input('disponible', true),
