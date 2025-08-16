@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../../../config/config.dart'; // Agrega este import
+
+String getRestauranteImageUrl(String? imagen) {
+  if (imagen == null || imagen.isEmpty) return '';
+  final url = '${AppConfig.storageBaseUrl}/$imagen';
+  print('[SELECTOR][LOGO] Ruta completa de imagen: $url');
+  return url;
+}
 
 class RestauranteSelectorScreen extends StatelessWidget {
   final List restaurantes;
@@ -70,7 +78,7 @@ class RestauranteSelectorScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         child: imagen != null && imagen.toString().isNotEmpty
                             ? Image.network(
-                                imagen,
+                                getRestauranteImageUrl(imagen),
                                 width: 60,
                                 height: 60,
                                 fit: BoxFit.cover,

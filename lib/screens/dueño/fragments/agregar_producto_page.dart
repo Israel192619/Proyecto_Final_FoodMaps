@@ -3,6 +3,10 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/config.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class AgregarProductoPage extends StatefulWidget {
   final int restauranteId;
@@ -26,6 +30,8 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
 
   Uint8List? _imageBytes;
   String? _imagePath;
+
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -110,6 +116,100 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
         }
       }
     }
+  }
+
+  // Obtiene el menu_id del restaurante
+  Future<int?> _fetchMenuId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final url = AppConfig.getApiUrl(AppConfig.restauranteClienteDetalleEndpoint(widget.restauranteId));
+    print('[VISTA][NPRODUCTO] Consultando menu_id en: $url');
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      print('[VISTA][NPRODUCTO] Respuesta detalle restaurante: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data']['menu_id'];
+      }
+    } catch (e) {
+      print('[VISTA][NPRODUCTO] Error al obtener menu_id: $e');
+    }
+    return null;
+  }
+
+  Future<void> _guardarProducto() async {
+    if (_formKey.currentState?.validate() != true) return;
+    setState(() => _isSaving = true);
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final menuId = await _fetchMenuId();
+    if (menuId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo obtener el menú del restaurante')),
+      );
+      setState(() => _isSaving = false);
+      return;
+    }
+
+    final url = AppConfig.getApiUrl(
+      AppConfig.productosMenuRestauranteEndpoint(widget.restauranteId, menuId),
+    );
+    print('[VISTA][NPRODUCTO] URL POST producto: $url');
+
+    final request = http.MultipartRequest('POST', Uri.parse(url));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['nombre'] = _nombreController.text;
+    request.fields['precio'] = _precioController.text;
+    request.fields['descripcion'] = _descripcionController.text;
+    request.fields['tipo'] = widget.tipoProducto.toString();
+    request.fields['disponible'] = 'true';
+
+    if (_imageBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'imagen',
+          _imageBytes!,
+          filename: _imagePath ?? 'producto.jpg',
+        ),
+      );
+    }
+
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      print('[VISTA][NPRODUCTO] Respuesta POST producto: ${response.statusCode} - ${response.body}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Producto guardado correctamente')),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar producto: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      print('[VISTA][NPRODUCTO] Error al guardar producto: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión al guardar producto')),
+      );
+    }
+    setState(() => _isSaving = false);
+  }
+
+  String getProductImageUrl(String? imagen) {
+    if (imagen == null || imagen.isEmpty) return '';
+    if (imagen.startsWith('http')) return imagen;
+    final url = '${AppConfig.storageBaseUrl}$imagen';
+    print('[VISTA][NPRODUCTO] URL imagen producto: $url');
+    return url;
   }
 
   @override
@@ -214,35 +314,27 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
                             onChanged: (_) => setState(() {}),
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.image),
-                                label: const Text('Seleccionar imagen'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                          // Centra el botón y elimina la ruta de la imagen
+                          Center(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.image),
+                              label: const Text('Seleccionar imagen'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                onPressed: _seleccionarImagen,
                               ),
-                              const SizedBox(width: 12),
-                              if (_imagePath != null)
-                                Expanded(
-                                  child: Text(
-                                    _imagePath!,
-                                    style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                            ],
+                              onPressed: _seleccionarImagen,
+                            ),
                           ),
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
                             icon: const Icon(Icons.save),
-                            label: Text('Guardar $tipo'),
+                            label: _isSaving
+                                ? const Text('Guardando...')
+                                : Text('Guardar $tipo'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
@@ -252,15 +344,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
                               ),
                               elevation: 6,
                             ),
-                            onPressed: () {
-                              if (_formKey.currentState?.validate() ?? false) {
-                                // Aquí puedes implementar la lógica para guardar el producto
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('$tipo guardado correctamente')),
-                                );
-                                Navigator.pop(context);
-                              }
-                            },
+                            onPressed: _isSaving ? null : _guardarProducto,
                           ),
                         ],
                       ),

@@ -2,6 +2,9 @@
 class AppConfig {
   static const String apiBaseUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api';
 
+    // NUEVO: Ruta base pública para imágenes de productos y menús
+  static const String storageBaseUrl = 'http://192.168.100.9:8081/FoodMaps_API/storage/app/public/';
+
   // Endpoints
   static const String loginEndpoint = '/auth/login';
   static const String registerEndpoint = '/auth/register';
@@ -10,6 +13,10 @@ class AppConfig {
   // Endpoints para clientes
   static const String restaurantesClienteEndpoint = '/clientes/restaurantes';
   static String restauranteClienteDetalleEndpoint(int id) => '/clientes/restaurantes/$id';
+
+  // Endpoint para obtener productos de un menú específico de un restaurante (clientes)
+  static String productosMenuRestauranteEndpoint(int restauranteId, int menuId) =>
+      '/clientes/restaurantes/$restauranteId/menus/$menuId/productos';
 
   // Endpoint para cambiar estado restaurante (dueño)
   static String restauranteChangeStatusEndpoint(int id) => '/restaurantes/$id/change-status';

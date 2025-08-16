@@ -13,6 +13,13 @@ import 'package:cases/screens/dueño/fragments/dueno_bebidas_page.dart';
 import 'package:cases/screens/dueño/fragments/settings_dueno_page.dart';
 import 'package:cases/config/config.dart';
 
+String getRestauranteImageUrl(String? imagen) {
+  if (imagen == null || imagen.isEmpty) return '';
+  final url = '${AppConfig.storageBaseUrl}$imagen';
+  print('[VISTA][D_IMAGEN] Ruta completa de imagen: $url');
+  return url;
+}
+
 class MapsDueActivity extends StatefulWidget {
   final int restauranteId;
 
@@ -74,52 +81,62 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     final restauranteId = widget.restauranteId;
-    final url = AppConfig.getApiUrl(AppConfig.restauranteStatusEndpoint(restauranteId));
-    print('[WSO][RUTA] GET estado restaurante: $url');
+
+    String nombreRestaurante = 'Restaurante';
+    int estadoRestaurante = 0;
+    String imagenRestaurante = '';
+
+    // 1. Consulta la lista de restaurantes y busca el restaurante por ID
+    final urlLista = AppConfig.getApiUrl(AppConfig.restaurantesClienteEndpoint);
+    print('[VISTA][D_IMAGEN] GET lista restaurantes: $urlLista');
     try {
       final response = await http.get(
-        Uri.parse(url),
+        Uri.parse(urlLista),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('[WSO] Respuesta statusCode: ${response.statusCode}');
-      print('[WSO] Respuesta body: ${response.body}');
+      print('[VISTA][D_IMAGEN] Respuesta lista statusCode: ${response.statusCode}');
+      print('[VISTA][D_IMAGEN] Respuesta lista body: ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final restData = data['data'];
-        setState(() {
-          _nombreRestaurante = restData['nombre_restaurante'] ?? 'Restaurante';
-          _restauranteStatus = restData['estado'] ?? 0;
-          _isLoadingRestauranteStatus = false; // --- Estado cargado ---
-        });
-        // Notifica al fragmento del mapa el estado inicial
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          print('[MARCADOR] Notificando a MapsDuePage con estado inicial $_restauranteStatus');
-          if (_mapsDuePageKey.currentState != null) {
-            final dynamic state = _mapsDuePageKey.currentState;
-            if (state != null && state.actualizarEstadoRestaurante != null) {
-              state.actualizarEstadoRestaurante(_restauranteStatus);
-              print('[MARCADOR] Llamada a actualizarEstadoRestaurante desde _fetchRestaurantData');
-            }
-          }
-        });
-        print('[WSO] Estado real obtenido del backend: $_restauranteStatus');
-      } else {
-        print('[WSO] No se pudo obtener el estado real, usando cerrado (0)');
-        setState(() {
-          _restauranteStatus = 0;
-          _isLoadingRestauranteStatus = false; // --- Estado cargado ---
-        });
+        final List restaurantes = data is Map && data.containsKey('data') ? data['data'] : [];
+        final restaurante = restaurantes.firstWhere(
+          (r) => r['id'] == restauranteId,
+          orElse: () => null,
+        );
+        print('[VISTA][D_IMAGEN] Restaurante encontrado: $restaurante');
+        if (restaurante != null) {
+          nombreRestaurante = restaurante['nombre_restaurante'] ?? nombreRestaurante;
+          estadoRestaurante = restaurante['estado'] ?? estadoRestaurante;
+          imagenRestaurante = restaurante['imagen'] ?? '';
+          print('[VISTA][D_IMAGEN] Imagen obtenida: $imagenRestaurante');
+        }
       }
     } catch (e) {
-      print('[WSO] Error al consultar estado real: $e');
-      setState(() {
-        _restauranteStatus = 0;
-        _isLoadingRestauranteStatus = false; // --- Estado cargado ---
-      });
+      print('[VISTA][D_IMAGEN] Error al obtener lista de restaurantes: $e');
     }
+
+    setState(() {
+      _nombreRestaurante = nombreRestaurante;
+      _restauranteStatus = estadoRestaurante;
+      _imagenRestaurante = imagenRestaurante;
+      print('[VISTA][D_IMAGEN] Valor de imagen asignado FINAL: $_imagenRestaurante');
+      _isLoadingRestauranteStatus = false;
+    });
+    // Notifica al fragmento del mapa el estado inicial
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('[MARCADOR] Notificando a MapsDuePage con estado inicial $_restauranteStatus');
+      if (_mapsDuePageKey.currentState != null) {
+        final dynamic state = _mapsDuePageKey.currentState;
+        if (state != null && state.actualizarEstadoRestaurante != null) {
+          state.actualizarEstadoRestaurante(_restauranteStatus);
+          print('[MARCADOR] Llamada a actualizarEstadoRestaurante desde _fetchRestaurantData');
+        }
+      }
+    });
+    print('[WSO] Estado real obtenido del backend: $_restauranteStatus');
   }
 
   Future<void> _cambiarEstadoRestaurante(bool _) async {
@@ -394,9 +411,19 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     });
+    final imageUrlBanner = getRestauranteImageUrl(_imagenRestaurante);
+    print('[VISTA][D_IMAGEN] Imagen usada en banner: $imageUrlBanner');
     print('[VISTA MAPSDUE] Rebuild de MapsDueActivity. Estado actual: $_restauranteStatus');
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, popAction) async {
+        if (!didPop) {
+          final result = await _onWillPop();
+          if (result) {
+            Navigator.of(context).maybePop();
+          }
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -404,14 +431,14 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: _imagenRestaurante.isNotEmpty
+                child: imageUrlBanner.isNotEmpty
                     ? Image.network(
-                  _imagenRestaurante,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
-                )
+                        imageUrlBanner,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+                      )
                     : const Icon(Icons.image, size: 40),
               ),
               const SizedBox(width: 12),

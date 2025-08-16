@@ -337,6 +337,9 @@ class _MapsPageState extends State<MapsPage> {
   }
 
   void _openDetail(Map obj) {
+    // Oculta el info window antes de navegar
+    _customController.hideInfoWindow!();
+
     // Corrige los campos para evitar errores de tipo
     final int restaurantId = obj['restaurante_id'] is int
         ? obj['restaurante_id']
@@ -345,7 +348,7 @@ class _MapsPageState extends State<MapsPage> {
         : int.tryParse(obj['restaurante_id']?.toString() ?? obj['id']?.toString() ?? '0') ?? 0);
     final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
     final String phone = obj['celular']?.toString() ?? '';
-    final String imageUrl = obj['imagen']?.toString() ?? '';
+    final String imageUrl = getRestauranteImageUrl(obj['imagen']?.toString());
 
     Navigator.push(
       context,
@@ -576,7 +579,7 @@ class MapsDesktopTable extends StatelessWidget {
                       const DataColumn(label: Text('Ver Menú', style: TextStyle(fontWeight: FontWeight.bold))),
                     ],
                     rows: restaurantesData.map((rest) {
-                      final imageUrl = rest['imagen'];
+                      final imageUrl = getRestauranteImageUrl(rest['imagen']?.toString());
                       final nombre = rest['nombre_restaurante'] ?? '';
                       final ubicacion = rest['ubicacion'] ?? '';
                       final estado = rest['estado'] is int
@@ -589,7 +592,7 @@ class MapsDesktopTable extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(vertical: 8.0),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: imageUrl != null && imageUrl.toString().isNotEmpty
+                                child: imageUrl.isNotEmpty
                                     ? Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover)
                                     : Container(
                                   width: 60,
@@ -691,6 +694,13 @@ class MapsDesktopTable extends StatelessWidget {
   }
 }
 
+String getRestauranteImageUrl(String? imagen) {
+  if (imagen == null || imagen.isEmpty) return '';
+  final url = '${AppConfig.storageBaseUrl}$imagen';
+  print('[IMG_URL][CLIENTE] Ruta completa de imagen: $url');
+  return url;
+}
+
 class MapsUtils {
   static LatLng? decodeLatLng(String? ubicacion) {
     if (ubicacion != null && ubicacion.contains(',')) {
@@ -728,7 +738,7 @@ class MapsUtils {
         final infoWidget = RestaurantInfoWindow(
           restaurantData: {
             ...obj,
-            'imagen': (obj['imagen'] ?? '').toString(),
+            'imagen': getRestauranteImageUrl(obj['imagen']?.toString()),
           },
           onMenuPressed: () => onMenuPressed(obj),
         );
@@ -737,4 +747,3 @@ class MapsUtils {
     );
   }
 }
-

@@ -97,6 +97,13 @@ class _MapsDuePageState extends State<MapsDuePage> {
     }
   }
 
+  String getRestauranteImageUrl(String? imagen) {
+    if (imagen == null || imagen.isEmpty) return '';
+    final url = '${AppConfig.storageBaseUrl}$imagen';
+    print('[IMG_URL][DUEÑO] Ruta completa de imagen: $url');
+    return url;
+  }
+
   Future<void> _fetchRestaurantData() async {
     await Future.delayed(Duration(seconds: 1));
     print('[MARCADOR] _fetchRestaurantData INICIO');
@@ -109,13 +116,12 @@ class _MapsDuePageState extends State<MapsDuePage> {
     if (restauranteJson != null) {
       try {
         restauranteData = jsonDecode(restauranteJson);
-        print('[MARCADOR] restauranteData obtenido: $restauranteData');
         // --- CAMBIO: Extraer lat/lng desde "ubicacion" si existe ---
         if (restauranteData != null) {
           if (restauranteData['ubicacion'] != null && restauranteData['ubicacion'] is String) {
             final ubicacionStr = restauranteData['ubicacion'] as String;
             final parts = ubicacionStr.split(',');
-            if (parts.length == 2) {
+            if (parts.length >= 2) { // Puede venir con zoom como tercer valor
               final lat = double.tryParse(parts[0]);
               final lng = double.tryParse(parts[1]);
               if (lat != null && lng != null) {
@@ -158,7 +164,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
               : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           onTap: () {
             print('[window] Datos del restaurante principal al abrir ventana: $restauranteData');
-            final imagenSafe = (restauranteData?['imagen'] ?? '').toString();
+            final imagenSafe = getRestauranteImageUrl(restauranteData?['imagen']?.toString());
             print('[window] Valor seguro para imagen: $imagenSafe, tipo: ${imagenSafe.runtimeType}');
             if (restauranteData?['nombre_restaurante'] == null) print('[window] nombre_restaurante es null');
             if (restauranteData?['imagen'] == null) print('[window] imagen es null');
@@ -239,8 +245,10 @@ class _MapsDuePageState extends State<MapsDuePage> {
           double? lat, lng;
           if (latLngStr != null && latLngStr.contains(',')) {
             final parts = latLngStr.split(',');
-            lat = double.tryParse(parts[0]);
-            lng = double.tryParse(parts[1]);
+            if (parts.length >= 2) {
+              lat = double.tryParse(parts[0]);
+              lng = double.tryParse(parts[1]);
+            }
           }
           final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
           if (lat == null || lng == null) {
@@ -261,7 +269,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
               icon: icon,
               onTap: () {
                 print('[window] Datos del restaurante al abrir ventana: $obj');
-                final imagenSafe = (obj['imagen'] ?? '').toString();
+                final imagenSafe = getRestauranteImageUrl(obj['imagen']?.toString());
                 print('[window] Valor seguro para imagen: $imagenSafe, tipo: ${imagenSafe.runtimeType}');
                 if (obj['nombre_restaurante'] == null) print('[window] nombre_restaurante es null');
                 if (obj['imagen'] == null) print('[window] imagen es null');
@@ -283,6 +291,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
                     final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
                     final String phone = obj['celular']?.toString() ?? '';
                     final String imageUrl = obj['imagen']?.toString() ?? '';
+                    print('[VISTA][MENU] Navegando a menú restauranteId=$restaurantId, name=$name, phone=$phone, imageUrl=$imageUrl');
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -591,9 +600,17 @@ class _MapsDuePageState extends State<MapsDuePage> {
     Set<Marker> filteredMarkers = {};
     for (var obj in _restaurantesData) {
       final marker = MapsUtils.createMarker(
-        obj: obj,
+        obj: {
+          ...obj,
+          'imagen': getRestauranteImageUrl(obj['imagen']?.toString()),
+        },
         estadoFiltro: _estadoFiltro,
         onMenuPressed: (rest) {
+          // Oculta el info window antes de navegar
+          if (_customController != null) {
+            _customController!.customController.hideInfoWindow!();
+          }
+
           // ...navegación a menú...
           final int restaurantId = rest['restaurante_id'] is int
               ? rest['restaurante_id']
@@ -602,7 +619,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
                   : int.tryParse(rest['restaurante_id']?.toString() ?? rest['id']?.toString() ?? '0') ?? 0);
           final String name = rest['nom_rest'] ?? rest['nombre_restaurante'] ?? '';
           final String phone = rest['celular']?.toString() ?? '';
-          final String imageUrl = rest['imagen']?.toString() ?? '';
+          final String imageUrl = getRestauranteImageUrl(rest['imagen']?.toString());
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -633,8 +650,10 @@ class _MapsDuePageState extends State<MapsDuePage> {
     double? lat, lng;
     if (latLngStr != null && latLngStr.contains(',')) {
       final parts = latLngStr.split(',');
-      lat = double.tryParse(parts[0]);
-      lng = double.tryParse(parts[1]);
+      if (parts.length >= 2) {
+        lat = double.tryParse(parts[0]);
+        lng = double.tryParse(parts[1]);
+      }
     }
     if (lat == null || lng == null) return null;
 
@@ -656,6 +675,12 @@ class _MapsDuePageState extends State<MapsDuePage> {
             'imagen': imagenSafe,
           },
           onMenuPressed: () {
+            // Oculta el info window antes de navegar
+            if (_customController != null) {
+              _customController!.customController.hideInfoWindow!();
+            }
+
+            // Navega a Menu_Restaurante.dart
             final int restaurantId = obj['restaurante_id'] is int
                 ? obj['restaurante_id']
                 : (obj['id'] is int
@@ -664,6 +689,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
             final String name = obj['nom_rest'] ?? obj['nombre_restaurante'] ?? '';
             final String phone = obj['celular']?.toString() ?? '';
             final String imageUrl = obj['imagen']?.toString() ?? '';
+            print('[VISTA][MENU] Navegando a menú restauranteId=$restaurantId, name=$name, phone=$phone, imageUrl=$imageUrl');
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -683,10 +709,11 @@ class _MapsDuePageState extends State<MapsDuePage> {
   }
 
   Widget _buildDesktopTable(BuildContext context) {
-    // Reutiliza el widget de tabla de escritorio de maps_page
-    // Añade el parámetro showEstado para mostrar la columna de estado
     return MapsDesktopTable(
-      restaurantesData: _restaurantesData,
+      restaurantesData: _restaurantesData.map((rest) => {
+        ...rest,
+        'imagen': getRestauranteImageUrl(rest['imagen']?.toString()),
+      }).toList(),
       onMenuPressed: (rest) {
         // Navega a Menu_Restaurante.dart
         final int restaurantId = rest['restaurante_id'] is int
@@ -696,7 +723,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
                 : int.tryParse(rest['restaurante_id']?.toString() ?? rest['id']?.toString() ?? '0') ?? 0);
         final String name = rest['nom_rest'] ?? rest['nombre_restaurante'] ?? '';
         final String phone = rest['celular']?.toString() ?? '';
-        final String imageUrl = rest['imagen']?.toString() ?? '';
+        final String imageUrl = getRestauranteImageUrl(rest['imagen']?.toString());
         Navigator.push(
           context,
           MaterialPageRoute(

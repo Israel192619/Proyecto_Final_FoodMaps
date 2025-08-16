@@ -22,8 +22,16 @@ class _MapsCliActivityState extends State<MapsCliActivity> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, popAction) async {
+        if (!didPop) {
+          final result = await _onWillPop();
+          if (result) {
+            Navigator.of(context).maybePop();
+          }
+        }
+      },
       child: Scaffold(
         extendBody: true,
         body: IndexedStack(
