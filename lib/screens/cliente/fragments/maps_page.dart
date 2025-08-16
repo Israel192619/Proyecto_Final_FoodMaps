@@ -659,10 +659,7 @@ class MapsDesktopTable extends StatelessWidget {
 }
 
 String getRestauranteImageUrl(String? imagen) {
-  if (imagen == null || imagen.isEmpty) return '';
-  final url = '${AppConfig.storageBaseUrl}$imagen';
-  print('[IMG_URL][CLIENTE] Ruta completa de imagen: $url');
-  return url;
+  return AppConfig.getImageUrl(imagen);
 }
 
 class MapsUtils {

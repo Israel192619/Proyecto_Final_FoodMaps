@@ -98,10 +98,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
   }
 
   String getRestauranteImageUrl(String? imagen) {
-    if (imagen == null || imagen.isEmpty) return '';
-    final url = '${AppConfig.storageBaseUrl}$imagen';
-    print('[IMG_URL][DUEÑO] Ruta completa de imagen: $url');
-    return url;
+    return AppConfig.getImageUrl(imagen);
   }
 
   Future<void> _fetchRestaurantData() async {

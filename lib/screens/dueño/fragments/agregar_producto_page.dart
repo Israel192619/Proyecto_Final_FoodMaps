@@ -213,6 +213,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
     final url = '${AppConfig.storageBaseUrl}$imagen';
     print('[VISTA][NPRODUCTO] URL imagen producto: $url');
     return url;
+    
   }
 
   @override

@@ -2,7 +2,7 @@
 class AppConfig {
   static const String apiBaseUrl = 'http://192.168.100.9:8081/FoodMaps_API/public/api';
 
-    // NUEVO: Ruta base pública para imágenes de productos y menús
+  // NUEVO: Ruta base pública para imágenes de productos y menús
   static const String storageBaseUrl = 'http://192.168.100.9:8081/FoodMaps_API/storage/app/public/';
 
   // Endpoints
@@ -80,5 +80,24 @@ class AppConfig {
     if (wsAcceptedProductEvents.contains(event)) return true;
     // fallback genérico: cualquier evento 'producto.*.updated'
     return event.startsWith('producto.') && event.endsWith('.updated');
+  }
+
+  // Nueva función centralizada para manejar URLs de imágenes y evitar duplicaciones
+  static String getImageUrl(String? imagen) {
+    if (imagen == null || imagen.isEmpty) return '';
+
+    // Si la imagen ya contiene la URL base, no añadirla nuevamente
+    if (imagen.startsWith('http://192.168.100.9:8081/FoodMaps_API/storage/app/public/')) {
+      // Verificar si hay duplicación
+      final duplicatedPattern = 'http://192.168.100.9:8081/FoodMaps_API/storage/app/public/http://192.168.100.9:8081/FoodMaps_API/storage/app/public/';
+      if (imagen.startsWith(duplicatedPattern)) {
+        // Eliminar la primera ocurrencia de la URL base
+        return imagen.substring(storageBaseUrl.length);
+      }
+      return imagen;
+    }
+
+    // Si es una ruta relativa, agregar la URL base
+    return storageBaseUrl + imagen;
   }
 }

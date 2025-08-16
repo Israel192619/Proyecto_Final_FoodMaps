@@ -69,6 +69,8 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
     if (imagen == null || imagen.isEmpty) return '';
     if (imagen.startsWith('http')) return imagen;
     return '${AppConfig.storageBaseUrl}$imagen';
+    if (imagen.startsWith('http')) return imagen;
+    return '${AppConfig.storageBaseUrl}$imagen';
   }
 
   Future<void> _editarCampo(String campo) async {

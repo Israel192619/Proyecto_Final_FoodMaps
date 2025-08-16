@@ -10,6 +10,8 @@ String getProductImageUrl(String? imagen) {
   if (imagen == null || imagen.isEmpty) return '';
   if (imagen.startsWith('http')) return imagen;
   return '${AppConfig.storageBaseUrl}$imagen';
+  if (imagen.startsWith('http')) return imagen;
+  return '${AppConfig.storageBaseUrl}$imagen';
 }
 
 class PlatosDuenoPage extends StatefulWidget {

@@ -14,10 +14,7 @@ import 'package:cases/screens/dueño/fragments/settings_dueno_page.dart';
 import 'package:cases/config/config.dart';
 
 String getRestauranteImageUrl(String? imagen) {
-  if (imagen == null || imagen.isEmpty) return '';
-  final url = '${AppConfig.storageBaseUrl}$imagen';
-  print('[VISTA][D_IMAGEN] Ruta completa de imagen: $url');
-  return url;
+  return AppConfig.getImageUrl(imagen);
 }
 
 class MapsDueActivity extends StatefulWidget {
@@ -103,7 +100,7 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
         final data = jsonDecode(response.body);
         final List restaurantes = data is Map && data.containsKey('data') ? data['data'] : [];
         final restaurante = restaurantes.firstWhere(
-          (r) => r['id'] == restauranteId,
+              (r) => r['id'] == restauranteId,
           orElse: () => null,
         );
         print('[VISTA][D_IMAGEN] Restaurante encontrado: $restaurante');
@@ -314,7 +311,7 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     bool suscripcionExitosa = false;
 
     _channel?.stream.listen(
-      (message) {
+          (message) {
         print('[WSO] Mensaje recibido del WebSocket: $message');
         try {
           final data = jsonDecode(message);
@@ -433,12 +430,12 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
                 borderRadius: BorderRadius.circular(8),
                 child: imageUrlBanner.isNotEmpty
                     ? Image.network(
-                        imageUrlBanner,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
-                      )
+                  imageUrlBanner,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+                )
                     : const Icon(Icons.image, size: 40),
               ),
               const SizedBox(width: 12),
@@ -526,9 +523,9 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
           onChanged: _isChangingStatus
               ? null // Deshabilita el switch mientras cambia el estado
               : (value) {
-                  print('[WSO] Switch presionado. Valor actual: $_restauranteStatus (${_restauranteStatus == 1 ? 'Abierto' : 'Cerrado'}), valor del switch: $value');
-                  _cambiarEstadoRestaurante(value);
-                },
+            print('[WSO] Switch presionado. Valor actual: $_restauranteStatus (${_restauranteStatus == 1 ? 'Abierto' : 'Cerrado'}), valor del switch: $value');
+            _cambiarEstadoRestaurante(value);
+          },
           activeColor: Colors.green,
           inactiveThumbColor: Colors.red,
         ),
