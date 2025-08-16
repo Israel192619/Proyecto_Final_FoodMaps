@@ -415,12 +415,12 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     print('[VISTA][D_IMAGEN] Imagen usada en banner: $imageUrlBanner');
     print('[VISTA MAPSDUE] Rebuild de MapsDueActivity. Estado actual: $_restauranteStatus');
     return PopScope(
-      canPop: true,
+      canPop: false, // Cambiar a false para interceptar el botón atrás
       onPopInvokedWithResult: (didPop, popAction) async {
         if (!didPop) {
           final result = await _onWillPop();
           if (result) {
-            Navigator.of(context).maybePop();
+            Navigator.of(context).pop();
           }
         }
       },
@@ -547,19 +547,19 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
 
 
   Future<bool> _onWillPop() async {
-    final shouldExit = await showDialog(
+    final shouldExit = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('¿Salir?'),
+        title: const Text('¿Salir de la aplicación?'),
         content: const Text('¿Estás seguro que quieres salir de la aplicación?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Sí'),
+            child: const Text('Salir'),
           ),
         ],
       ),

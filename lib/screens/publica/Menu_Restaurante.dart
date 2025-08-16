@@ -130,7 +130,7 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
     print('[VISTA][MENU] Productos filtrados - Platos: ${platos.length}, Bebidas: ${bebidas.length}');
 
     return PopScope(
-      canPop: true,
+      canPop: true, // Permite regresar sin confirmación ya que no es la actividad principal
       onPopInvokedWithResult: (didPop, result) {
         print('[VISTA][MENU] PopScope - didPop: $didPop');
         if (didPop) {

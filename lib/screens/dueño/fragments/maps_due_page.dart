@@ -340,6 +340,10 @@ class _MapsDuePageState extends State<MapsDuePage> {
   // Metodo público para actualizar el estado y el marcador desde fuera
   void actualizarEstadoRestaurante(int nuevoEstado) {
     print('[MARCADOR] actualizarEstadoRestaurante llamado con estado: $nuevoEstado');
+
+    // Primero oculta cualquier ventana de información abierta
+    _customController?.hideInfoWindow();
+
     setState(() {
       print('[MARCADOR] setState dentro de actualizarEstadoRestaurante');
       _restauranteStatus = nuevoEstado;
@@ -359,7 +363,7 @@ class _MapsDuePageState extends State<MapsDuePage> {
             if (restauranteData['ubicacion'] != null && restauranteData['ubicacion'] is String) {
               final ubicacionStr = restauranteData['ubicacion'] as String;
               final parts = ubicacionStr.split(',');
-              if (parts.length == 2) {
+              if (parts.length >= 2) { // Puede venir con zoom como tercer valor
                 final lat = double.tryParse(parts[0]);
                 final lng = double.tryParse(parts[1]);
                 if (lat != null && lng != null) {
@@ -373,10 +377,53 @@ class _MapsDuePageState extends State<MapsDuePage> {
                 _restauranteMarker = Marker(
                   markerId: MarkerId(widget.restauranteId.toString()),
                   position: latLng!,
-                  infoWindow: InfoWindow(title: nombre),
+                  infoWindow: InfoWindow.noText, // Mantén sin texto nativo
                   icon: nuevoEstado == 1
                       ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
                       : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                  onTap: () {
+                    print('[window] Datos del restaurante principal al abrir ventana: $restauranteData');
+                    final imagenSafe = getRestauranteImageUrl(restauranteData['imagen']?.toString());
+                    print('[window] Valor seguro para imagen: $imagenSafe, tipo: ${imagenSafe.runtimeType}');
+
+                    // Asegúrate de que el controlador esté listo antes de mostrar la ventana
+                    if (_customController != null) {
+                      // Pequeño delay para asegurar que el estado se ha actualizado completamente
+                      Future.delayed(Duration(milliseconds: 100), () {
+                        _customController!.showInfoWindow(
+                          [
+                            RestaurantInfoWindow(
+                              restaurantData: {
+                                ...(restauranteData ?? {}),
+                                'imagen': imagenSafe,
+                                'estado': nuevoEstado, // Asegura que el estado actualizado se pase
+                              },
+                              onMenuPressed: () {
+                                print('[window] Ver menú de restaurante: $nombre');
+                                _customController?.hideInfoWindow();
+                                // Navegación al menú...
+                                final int restaurantId = widget.restauranteId;
+                                final String phone = restauranteData['celular']?.toString() ?? '';
+                                final String imageUrl = restauranteData['imagen']?.toString() ?? '';
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MenuRestaurante(
+                                      restaurantId: restaurantId,
+                                      name: nombre,
+                                      phone: phone,
+                                      imageUrl: imageUrl,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          ],
+                          [latLng!],
+                        );
+                      });
+                    }
+                  },
                 );
               });
             } else {
@@ -393,6 +440,10 @@ class _MapsDuePageState extends State<MapsDuePage> {
   // NUEVO: Actualiza el marcador de cualquier restaurante por su ID y estado
   void actualizarMarcadorRestaurantePorId(int id, int nuevoEstado) {
     print('[MARCADOR] actualizarMarcadorRestaurantePorId llamado para id=$id, estado=$nuevoEstado');
+
+    // Oculta cualquier ventana de información abierta
+    _customController?.hideInfoWindow();
+
     Marker? marcadorAnterior;
     try {
       marcadorAnterior = _allMarkers.firstWhere(
@@ -401,25 +452,80 @@ class _MapsDuePageState extends State<MapsDuePage> {
     } catch (e) {
       marcadorAnterior = null;
     }
+
     setState(() {
       if (marcadorAnterior != null) {
         print('[MARCADOR] Eliminando marcador anterior de id=$id');
         _allMarkers.remove(marcadorAnterior);
         final nuevaPos = marcadorAnterior.position;
-        final nuevoNombre = marcadorAnterior.infoWindow.title ?? '';
         final nuevoIcono = nuevoEstado == 1
             ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
             : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+        // Busca los datos del restaurante en _restaurantesData
+        Map<String, dynamic>? restauranteData;
+        try {
+          restauranteData = _restaurantesData.firstWhere(
+            (rest) => rest['id'].toString() == id.toString(),
+          );
+        } catch (e) {
+          print('[MARCADOR] No se encontraron datos para el restaurante id=$id');
+        }
+
         final nuevoMarcador = Marker(
           markerId: MarkerId(id.toString()),
           position: nuevaPos,
-          infoWindow: InfoWindow(title: nuevoNombre),
+          infoWindow: InfoWindow.noText,
           icon: nuevoIcono,
+          onTap: () {
+            if (restauranteData != null && _customController != null) {
+              final imagenSafe = getRestauranteImageUrl(restauranteData['imagen']?.toString());
+
+              // Pequeño delay para asegurar que el marcador se ha actualizado
+              Future.delayed(Duration(milliseconds: 100), () {
+                _customController!.showInfoWindow(
+                  [
+                    RestaurantInfoWindow(
+                      restaurantData: {
+                        ...restauranteData!,
+                        'imagen': imagenSafe,
+                        'estado': nuevoEstado, // Usa el estado actualizado
+                      },
+                      onMenuPressed: () {
+                        _customController?.hideInfoWindow();
+                        // Navegación al menú...
+                        final int restaurantId = restauranteData?['restaurante_id'] is int
+                            ? restauranteData!['restaurante_id']
+                            : (restauranteData?['id'] is int
+                                ? restauranteData!['id']
+                                : int.tryParse(restauranteData?['restaurante_id']?.toString() ??
+                                    restauranteData?['id']?.toString() ?? '0') ?? 0);
+                        final String name = restauranteData?['nom_rest'] ??
+                                          restauranteData?['nombre_restaurante'] ?? '';
+                        final String phone = restauranteData?['celular']?.toString() ?? '';
+                        final String imageUrl = restauranteData?['imagen']?.toString() ?? '';
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MenuRestaurante(
+                              restaurantId: restaurantId,
+                              name: name,
+                              phone: phone,
+                              imageUrl: imageUrl,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  ],
+                  [nuevaPos],
+                );
+              });
+            }
+          },
         );
         _allMarkers.add(nuevoMarcador);
         print('[MARCADOR] Marcador actualizado en _allMarkers para id=$id');
-        // Elimina la línea que fuerza el redibujado de todoo el mapa:
-        // _mapKey = UniqueKey();
       } else {
         print('[MARCADOR] No se encontró marcador para id=$id');
       }
@@ -597,6 +703,9 @@ class _MapsDuePageState extends State<MapsDuePage> {
   }
 
   void _actualizarMarcadores() {
+    // Oculta cualquier ventana abierta antes de actualizar marcadores
+    _customController?.hideInfoWindow();
+
     Set<Marker> filteredMarkers = {};
     for (var obj in _restaurantesData) {
       final marker = MapsUtils.createMarker(

@@ -23,12 +23,12 @@ class _MapsCliActivityState extends State<MapsCliActivity> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return PopScope(
-      canPop: true,
+      canPop: false, // Cambiar a false para interceptar el botón atrás
       onPopInvokedWithResult: (didPop, popAction) async {
         if (!didPop) {
           final result = await _onWillPop();
           if (result) {
-            Navigator.of(context).maybePop();
+            Navigator.of(context).pop();
           }
         }
       },
@@ -92,17 +92,23 @@ class _MapsCliActivityState extends State<MapsCliActivity> {
   }
 
   Future<bool> _onWillPop() async {
-    final now = DateTime.now();
-    if (_lastPressed == null || now.difference(_lastPressed!) > const Duration(seconds: 2)) {
-      _lastPressed = now;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Presiona de nuevo para salir'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return false;
-    }
-    return true;
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Salir de la aplicación?'),
+        content: const Text('¿Estás seguro que quieres salir de la aplicación?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+    return shouldExit ?? false;
   }
 }

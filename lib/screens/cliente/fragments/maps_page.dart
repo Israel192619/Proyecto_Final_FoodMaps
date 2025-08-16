@@ -283,6 +283,9 @@ class _MapsPageState extends State<MapsPage> {
   }
 
   void _actualizarMarcadores() {
+    // Oculta cualquier ventana abierta antes de actualizar marcadores
+    _customController.hideInfoWindow!();
+
     _markers.clear();
     for (var obj in _restaurantesData) {
       final marker = MapsUtils.createMarker(
@@ -295,45 +298,6 @@ class _MapsPageState extends State<MapsPage> {
       if (marker != null) _markers.add(marker);
     }
     setState(() {});
-  }
-
-  Marker? _crearMarcador(Map<String, dynamic> obj) {
-    final estado = obj['estado'] is int ? obj['estado'] : int.tryParse(obj['estado'].toString()) ?? 1;
-    if (_estadoFiltro != -1 && estado != _estadoFiltro) return null;
-
-    final latLngStr = obj['ubicacion']?.toString();
-    double? lat, lng;
-    if (latLngStr != null && latLngStr.contains(',')) {
-      final parts = latLngStr.split(',');
-      lat = double.tryParse(parts[0]);
-      lng = double.tryParse(parts[1]);
-    }
-    if (lat == null || lng == null) return null;
-
-    final markerId = MarkerId(obj['id'].toString());
-    final icon = estado == 1
-        ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
-        : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-
-    final position = LatLng(lat, lng);
-    return Marker(
-      markerId: markerId,
-      position: position,
-      icon: icon,
-      onTap: () {
-        infoPositions = [position];
-        infoWidgets = [_buildCustomInfoWindow(obj)];
-        setState(() {});
-        _customController.addInfoWindow!(infoWidgets, infoPositions);
-      },
-    );
-  }
-
-  Widget _buildCustomInfoWindow(Map<String, dynamic> restaurantData) {
-    return RestaurantInfoWindow(
-      restaurantData: restaurantData,
-      onMenuPressed: () => _openDetail(restaurantData),
-    );
   }
 
   void _openDetail(Map obj) {

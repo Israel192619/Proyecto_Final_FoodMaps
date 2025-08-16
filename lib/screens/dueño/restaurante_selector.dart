@@ -1,18 +1,141 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../config/config.dart'; // Agrega este import
 
 String getRestauranteImageUrl(String? imagen) {
   if (imagen == null || imagen.isEmpty) return '';
-  final url = '${AppConfig.storageBaseUrl}/$imagen';
+  final url = '${AppConfig.storageBaseUrl}$imagen';
   print('[SELECTOR][LOGO] Ruta completa de imagen: $url');
   return url;
 }
 
-class RestauranteSelectorScreen extends StatelessWidget {
+class RestauranteSelectorScreen extends StatefulWidget {
   final List restaurantes;
   const RestauranteSelectorScreen({Key? key, required this.restaurantes}) : super(key: key);
+
+  @override
+  State<RestauranteSelectorScreen> createState() => _RestauranteSelectorScreenState();
+}
+
+class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
+  List _restaurantes = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _restaurantes = List.from(widget.restaurantes);
+  }
+
+  Future<void> _eliminarRestaurante(int restauranteId, String nombreRestaurante) async {
+    // Mostrar diálogo de confirmación
+    final bool? confirmado = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar eliminación'),
+          content: Text('¿Estás seguro que quieres eliminar el restaurante "$nombreRestaurante"?\n\nEsta acción no se puede deshacer.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmado != true) return;
+
+    // Mostrar indicador de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final url = AppConfig.getApiUrl(AppConfig.eliminarRestauranteEndpoint(restauranteId));
+      print('[SELECTOR] URL DELETE restaurante: $url');
+
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('[SELECTOR] Respuesta DELETE restaurante statusCode: ${response.statusCode}');
+      print('[SELECTOR] Respuesta DELETE restaurante body: ${response.body}');
+
+      // Cerrar indicador de carga
+      if (mounted) Navigator.of(context).pop();
+
+      if (response.statusCode == 200) {
+        // Eliminar de la lista local
+        setState(() {
+          _restaurantes.removeWhere((r) => r['id'] == restauranteId);
+        });
+
+        // Actualizar SharedPreferences si es necesario
+        final restauranteIdActual = prefs.getInt('restaurante_id');
+        if (restauranteIdActual == restauranteId) {
+          await prefs.remove('restaurante_id');
+          await prefs.remove('restaurante_seleccionado');
+          await prefs.setBool('hasRestaurant', false);
+        }
+
+        // Actualizar lista de restaurantes en SharedPreferences
+        await prefs.setString('restaurantes', jsonEncode(_restaurantes));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Restaurante "$nombreRestaurante" eliminado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Si no quedan restaurantes, redirigir a new_restaurante
+          if (_restaurantes.isEmpty) {
+            Navigator.pushReplacementNamed(context, '/new_restaurante');
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar restaurante: ${response.statusCode}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Cerrar indicador de carga
+      if (mounted) Navigator.of(context).pop();
+
+      print('[SELECTOR] Error al eliminar restaurante: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión al eliminar restaurante'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +159,10 @@ class RestauranteSelectorScreen extends StatelessWidget {
         ),
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          itemCount: restaurantes.length,
+          itemCount: _restaurantes.length,
           separatorBuilder: (_, __) => const SizedBox(height: 16),
           itemBuilder: (context, index) {
-            final restaurante = restaurantes[index];
+            final restaurante = _restaurantes[index];
             final imagen = restaurante['imagen'];
             final nombre = restaurante['nombre_restaurante'] ?? 'Restaurante';
             final tematica = restaurante['tematica'] ?? '';
@@ -162,7 +285,16 @@ class RestauranteSelectorScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.red, size: 32),
+                      Column(
+                        children: [
+                          IconButton(
+                            onPressed: () => _eliminarRestaurante(restaurante['id'], nombre),
+                            icon: const Icon(Icons.delete_forever, color: Colors.red, size: 28),
+                            tooltip: 'Eliminar restaurante',
+                          ),
+                          const Icon(Icons.chevron_right, color: Colors.red, size: 24),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -170,6 +302,16 @@ class RestauranteSelectorScreen extends StatelessWidget {
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, '/new_restaurante');
+        },
+        backgroundColor: Colors.red.shade700,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Agregar Restaurante'),
+        elevation: 8,
       ),
     );
   }

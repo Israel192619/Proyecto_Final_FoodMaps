@@ -25,6 +25,7 @@ class NewRestauranteScreen extends StatefulWidget {
 class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
   final _formKey = GlobalKey<FormState>();
   int? _userId;
+  int? _userRole; // Agregar para almacenar el rol del usuario
   bool _isLoading = false;
   bool _isSuccess = false;
   Uint8List? _imageBytes;
@@ -62,7 +63,9 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
         _userId = prefs.getInt('user_id');
+        _userRole = prefs.getInt('userRole'); // Obtener también el rol
       });
+      print('[VISTA NEWREST] Usuario ID: $_userId, Rol: $_userRole');
     } catch (e) {
       _mostrarError('Error al obtener ID de usuario: ${e.toString()}');
     }
@@ -429,6 +432,77 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
     }
   }
 
+  Future<void> _continuarComoCliente() async {
+    if (_isLoading) return;
+    if (_userId == null) {
+      _mostrarError('No se pudo identificar al usuario');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Mostrar loader modal
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final actualizarUsuarioUrl = AppConfig.getApiUrl(AppConfig.actualizarUsuarioEndpoint(_userId!));
+      print('[VISTA NEWREST] Actualizando rol usuario a Cliente: $actualizarUsuarioUrl');
+
+      final putResponse = await http.put(
+        Uri.parse(actualizarUsuarioUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'rol': 'Cliente'}),
+      );
+
+      print('[VISTA NEWREST] PUT usuario statusCode: ${putResponse.statusCode}');
+      print('[VISTA NEWREST] PUT usuario body: ${putResponse.body}');
+
+      // Cerrar loader modal
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      if (putResponse.statusCode == 200) {
+        // Actualizar el rol en SharedPreferences
+        await prefs.setInt('userRole', 1); // 1 = Cliente
+
+        _mostrarExito('Rol actualizado a Cliente exitosamente');
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (mounted) {
+          print('[VISTA NEWREST] [REDIR] Redirigiendo a AuthWrapper (/) después de actualizar rol');
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/',
+            (route) => false,
+          );
+        }
+      } else {
+        _mostrarError('No se pudo actualizar el rol del usuario. Intente nuevamente.');
+      }
+    } catch (e) {
+      // Cerrar loader modal
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      print('[VISTA NEWREST] Error al actualizar rol: $e');
+      _mostrarError('Error de conexión al actualizar rol');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   void _mostrarError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -657,6 +731,33 @@ class _NewRestauranteScreenState extends State<NewRestauranteScreen> {
                                   ),
                                 ),
                               ),
+                              // Mostrar botón "Continuar como Cliente" solo si el rol es 2 (Dueño)
+                              if (_userRole == 2) ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.person, color: Colors.white),
+                                    label: const Text(
+                                      'CONTINUAR COMO CLIENTE',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    onPressed: _isLoading ? null : _continuarComoCliente,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue.shade700,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 18),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      elevation: 8,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 18),
                               SizedBox(
                                 width: double.infinity,

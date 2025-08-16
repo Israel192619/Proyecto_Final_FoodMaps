@@ -48,4 +48,7 @@ class AppConfig {
 
   // Endpoint para actualizar restaurante (dueño)
   static String actualizarRestauranteEndpoint(int id) => '/restaurantes/$id';
+
+  // Endpoint para eliminar restaurante (dueño)
+  static String eliminarRestauranteEndpoint(int id) => '/restaurantes/$id';
 }
