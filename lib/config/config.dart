@@ -51,4 +51,14 @@ class AppConfig {
 
   // Endpoint para eliminar restaurante (dueño)
   static String eliminarRestauranteEndpoint(int id) => '/restaurantes/$id';
+
+  // Endpoint para actualizar producto (dueño) - usar:
+  // - PUT si NO hay imagen
+  // - POST si hay imagen (multipart)
+  static String actualizarProductoEndpoint(int restauranteId, int menuId, int productoId) =>
+      '/clientes/restaurantes/$restauranteId/menus/$menuId/productos/$productoId';
+
+  // Alias explícito para cuando se use POST con imagen (misma ruta, distinto metodo HTTP)
+  static String actualizarProductoPostEndpoint(int restauranteId, int menuId, int productoId) =>
+      '/clientes/restaurantes/$restauranteId/menus/$menuId/productos/$productoId';
 }

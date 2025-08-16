@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/config.dart';
 import 'agregar_producto_page.dart';
+  import 'editar_producto_page.dart'; // Agrega este import
 
 String getProductImageUrl(String? imagen) {
   if (imagen == null || imagen.isEmpty) return '';
@@ -127,166 +128,227 @@ class _PlatosDuenoPageState extends State<PlatosDuenoPage> {
         ),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : Center(
+            : SafeArea(
                 child: SingleChildScrollView(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      double maxWidth = constraints.maxWidth < 600 ? constraints.maxWidth * 0.98 : 540;
-                      return ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: maxWidth),
-                        child: Card(
-                          elevation: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_platos.isEmpty)
+                        Center(
+                          child: Column(
+                            children: [
+                              Icon(Icons.restaurant, size: 80, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No hay platos registrados',
+                                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  'Platos del Restaurante',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : Colors.red.shade700,
-                                  ),
-                                  textAlign: TextAlign.center,
+                        )
+                      else
+                        ..._platos.map((plato) {
+                          final imageUrl = getProductImageUrl(plato['imagen']?.toString());
+                          final disponible = plato['disponible'] == 1;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 20),
+                            child: Card(
+                              elevation: 12,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+                                  width: 1,
                                 ),
-                                const SizedBox(height: 18),
-                                if (_platos.isEmpty)
-                                  Center(
-                                    child: Column(
-                                      children: [
-                                        Icon(Icons.restaurant, size: 80, color: Colors.grey[400]),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'No hay platos registrados',
-                                          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                              ),
+                              color: isDark ? Colors.grey[850] : Colors.white,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: isDark
+                                      ? LinearGradient(
+                                          colors: [Colors.grey[800]!, Colors.grey[850]!],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                        )
+                                      : LinearGradient(
+                                          colors: [Colors.white, Colors.red.shade50],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
                                         ),
-                                      ],
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
                                     ),
-                                  )
-                                else
-                                  ..._platos.map((plato) {
-                                    final imageUrl = getProductImageUrl(plato['imagen']?.toString());
-                                    final disponible = plato['disponible'] == 1;
-                                    return Card(
-                                      elevation: 4,
-                                      margin: const EdgeInsets.symmetric(vertical: 10),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      color: isDark ? Colors.grey[900] : Colors.white,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius: BorderRadius.circular(12),
-                                              child: imageUrl.isNotEmpty
-                                                  ? Image.network(
-                                                      imageUrl,
-                                                      width: 70,
-                                                      height: 70,
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder: (context, error, stackTrace) =>
-                                                          Container(
-                                                            width: 70,
-                                                            height: 70,
-                                                            color: isDark ? Colors.grey[800] : Colors.grey[300],
-                                                            child: Icon(Icons.food_bank, size: 38, color: Colors.red.shade400),
-                                                          ),
-                                                    )
-                                                  : Container(
-                                                      width: 70,
-                                                      height: 70,
-                                                      color: isDark ? Colors.grey[800] : Colors.grey[300],
-                                                      child: Icon(Icons.food_bank, size: 38, color: Colors.red.shade400),
-                                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // 1) Imagen + Precio debajo
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(16),
+                                              border: Border.all(
+                                                color: isDark ? Colors.grey[600]! : Colors.grey[300]!,
+                                                width: 2,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withOpacity(0.15),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 3),
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          plato['nombre_producto'] ?? 'Sin nombre',
-                                                          style: TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 18,
-                                                            color: isDark ? Colors.white : Colors.red.shade700,
-                                                          ),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(14),
+                                              child: SizedBox(
+                                                width: 100,
+                                                height: 100,
+                                                child: imageUrl.isNotEmpty
+                                                    ? Image.network(
+                                                        imageUrl,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder: (context, error, stackTrace) => Container(
+                                                          color: isDark ? Colors.grey[700] : Colors.grey[200],
+                                                          child: Icon(Icons.food_bank, size: 50, color: Colors.red.shade400),
                                                         ),
+                                                      )
+                                                    : Container(
+                                                        color: isDark ? Colors.grey[700] : Colors.grey[200],
+                                                        child: Icon(Icons.food_bank, size: 50, color: Colors.red.shade400),
                                                       ),
-                                                      Icon(
-                                                        disponible ? Icons.check_circle : Icons.cancel,
-                                                        color: disponible ? Colors.green : Colors.red,
-                                                        size: 20,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'Bs. ${plato['precio'] ?? '0'}',
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: isDark ? Colors.grey[300] : Colors.grey[800],
-                                                    ),
-                                                  ),
-                                                  if (plato['descripcion'] != null && plato['descripcion'].toString().isNotEmpty)
-                                                    Padding(
-                                                      padding: const EdgeInsets.only(top: 6.0),
-                                                      child: Text(
-                                                        plato['descripcion'],
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color: isDark ? Colors.grey[400] : Colors.grey[700],
-                                                        ),
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                                                ],
                                               ),
                                             ),
-                                            IconButton(
-                                              icon: Icon(Icons.edit, color: Colors.red),
-                                              onPressed: () => _editarPlato(plato),
-                                              tooltip: 'Editar plato',
+                                          ),
+                                          const SizedBox(height: 12),
+                                          // Precio debajo de la imagen
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [Colors.red.shade400, Colors.red.shade600],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius: BorderRadius.circular(20),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.red.withOpacity(0.3),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
                                             ),
+                                            child: Text(
+                                              'Bs. ${plato['precio'] ?? '0'}',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(width: 16),
+
+                                      // 2) Nombre y descripción
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              plato['nombre_producto'] ?? 'Sin nombre',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: isDark ? Colors.white : Colors.red.shade700,
+                                              ),
+                                            ),
+                                            if (plato['descripcion'] != null && plato['descripcion'].toString().isNotEmpty) ...[
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                plato['descripcion'],
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: isDark ? Colors.grey[300] : Colors.grey[700],
+                                                  height: 1.3,
+                                                ),
+                                                // Se elimina el truncado para mostrar todo el texto
+                                                // maxLines: 3,
+                                                // overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
-                                    );
-                                  }).toList(),
-                              ],
+                                      const SizedBox(width: 16),
+
+                                      // 3) Indicador de disponibilidad (icono grande) + botón editar
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Icon(
+                                            disponible ? Icons.check_circle : Icons.cancel,
+                                            color: disponible ? Colors.green.shade700 : Colors.red.shade700,
+                                            size: 28, // ligeramente más grande
+                                          ),
+                                          const SizedBox(height: 12),
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.red),
+                                            onPressed: () => _editarPlato(plato),
+                                            tooltip: 'Editar plato',
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
+                          );
+                        }).toList(),
+                    ],
                   ),
                 ),
               ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _agregarPlato,
-        icon: Icon(Icons.add),
-        label: Text('Agregar plato'),
+        icon: const Icon(Icons.add),
+        label: const Text('Agregar plato'),
         backgroundColor: Colors.red,
       ),
     );
   }
 
   void _editarPlato(Map<String, dynamic> plato) {
-    // Implementar lógica de edición
     print('[VISTA][DUENO_PLATOS] Editar plato: ${plato['nombre_producto']}');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditarProductoPage(
+          producto: plato,
+          restauranteId: widget.restauranteId,
+          menuId: _menuId!,
+        ),
+      ),
+    ).then((result) {
+      // Si se guardaron cambios, refresca la lista
+      if (result == true) {
+        _fetchRestauranteDetalle();
+      }
+    });
   }
 
   void _agregarPlato() {

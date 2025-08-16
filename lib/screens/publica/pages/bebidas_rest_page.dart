@@ -161,8 +161,9 @@ class BebidasRest extends StatelessWidget {
                                   color: isDark ? Colors.grey[300] : Colors.grey[700],
                                   height: 1.3,
                                 ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
+                                // Se elimina el truncado para mostrar todo el texto
+                                // maxLines: 3,
+                                // overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ],
@@ -172,84 +173,90 @@ class BebidasRest extends StatelessWidget {
                     const SizedBox(width: 16),
 
                     // Tercer contenedor: Disponibilidad y precio
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[850] : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? Colors.grey[600]! : Colors.grey[200]!,
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: disponible ? Colors.green.shade100 : Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: disponible ? Colors.green.shade300 : Colors.red.shade300,
-                                width: 1,
-                              ),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.topRight,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey[850] : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? Colors.grey[600]! : Colors.grey[200]!,
+                              width: 1,
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  disponible ? Icons.check_circle : Icons.cancel,
-                                  color: disponible ? Colors.green.shade700 : Colors.red.shade700,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  disponible ? 'Disponible' : 'No disponible',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: disponible ? Colors.green.shade700 : Colors.red.shade700,
-                                    fontWeight: FontWeight.w600,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: disponible ? Colors.green.shade100 : Colors.red.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: disponible ? Colors.green.shade300 : Colors.red.shade300,
+                                    width: 1,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Colors.blue.shade400, Colors.blue.shade600],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blue.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      disponible ? Icons.check_circle : Icons.cancel,
+                                      color: disponible ? Colors.green.shade700 : Colors.red.shade700,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      disponible ? 'Disponible' : 'No disponible',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: disponible ? Colors.green.shade700 : Colors.red.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: Text(
-                              'Bs. ${producto['precio'] ?? '0'}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
                               ),
-                            ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.blue.shade400, Colors.blue.shade600],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.blue.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  'Bs. ${producto['precio'] ?? '0'}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ],
