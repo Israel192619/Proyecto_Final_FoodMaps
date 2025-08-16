@@ -30,6 +30,9 @@ class AppConfig {
 
   static String getWebSocketUrl() => websocketFullUrl;
 
+  // Canal público para eventos de restaurantes (Pusher-like)
+  static const String websocketChannelRestaurantes = 'restaurantes';
+
   // Endpoint para escuchar eventos de estado en tiempo real
   static String websocketEventsEndpoint() => '$websocketBaseUrl/events';
 

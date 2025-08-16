@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/config.dart';
 import 'agregar_producto_page.dart';
-  import 'editar_producto_page.dart'; // Agrega este import
+import 'editar_producto_page.dart'; // Agrega este import
 
 String getProductImageUrl(String? imagen) {
   if (imagen == null || imagen.isEmpty) return '';
@@ -25,6 +25,7 @@ class _PlatosDuenoPageState extends State<PlatosDuenoPage> {
   List<dynamic> _platos = [];
   bool _loading = true;
   int? _menuId;
+  int? _updatingProductoId; // <-- NUEVO: id del producto en actualización
 
   @override
   void initState() {
@@ -108,6 +109,65 @@ class _PlatosDuenoPageState extends State<PlatosDuenoPage> {
       }
     } catch (e) {
       print('[VISTA][DUENO_PLATOS] Error al obtener productos: $e');
+    }
+  }
+
+  // NUEVO: Alternar disponibilidad y actualizar por PUT
+  Future<void> _toggleDisponibilidad(Map<String, dynamic> plato) async {
+    if (_menuId == null) return;
+    final productoId = plato['producto_id'];
+    setState(() => _updatingProductoId = productoId);
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final url = AppConfig.getApiUrl(
+      AppConfig.actualizarProductoEndpoint(widget.restauranteId, _menuId!, productoId),
+    );
+    final disponibleActual = plato['disponible'] == 1;
+    final nuevoDisponible = !disponibleActual;
+
+    // Payload completo (backend requiere nombre y precio)
+    final payload = {
+      'nombre': (plato['nombre_producto'] ?? '').toString(),
+      'precio': double.tryParse(plato['precio'].toString()) ?? plato['precio'],
+      'descripcion': (plato['descripcion'] ?? '').toString(),
+      'disponible': nuevoDisponible, // booleano en JSON
+      'tipo': plato['tipo'] is int ? plato['tipo'] : int.tryParse('${plato['tipo']}') ?? 0,
+    };
+
+    print('[VISTA][DUENO_PLATOS] PUT disponibilidad productoId=$productoId url=$url payload=$payload');
+
+    try {
+      final resp = await http.put(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(payload),
+      );
+      print('[VISTA][DUENO_PLATOS] Respuesta PUT: ${resp.statusCode} - ${resp.body}');
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        setState(() {
+          plato['disponible'] = nuevoDisponible ? 1 : 0; // Actualiza localmente
+          _updatingProductoId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Disponibilidad actualizada (${nuevoDisponible ? 'Disponible' : 'No disponible'})')),
+        );
+      } else {
+        setState(() => _updatingProductoId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      setState(() => _updatingProductoId = null);
+      print('[VISTA][DUENO_PLATOS] Error PUT disponibilidad: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión')),
+      );
     }
   }
 
@@ -298,10 +358,23 @@ class _PlatosDuenoPageState extends State<PlatosDuenoPage> {
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.end,
                                         children: [
-                                          Icon(
-                                            disponible ? Icons.check_circle : Icons.cancel,
-                                            color: disponible ? Colors.green.shade700 : Colors.red.shade700,
-                                            size: 28, // ligeramente más grande
+                                          // Icono clickeable con loader mientras actualiza
+                                          InkWell(
+                                            onTap: _updatingProductoId == plato['producto_id']
+                                                ? null
+                                                : () => _toggleDisponibilidad(plato),
+                                            borderRadius: BorderRadius.circular(20),
+                                            child: _updatingProductoId == plato['producto_id']
+                                                ? const SizedBox(
+                                                    width: 28,
+                                                    height: 28,
+                                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                                  )
+                                                : Icon(
+                                                    disponible ? Icons.check_circle : Icons.cancel,
+                                                    color: disponible ? Colors.green.shade700 : Colors.red.shade700,
+                                                    size: 28,
+                                                  ),
                                           ),
                                           const SizedBox(height: 12),
                                           IconButton(

@@ -25,6 +25,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
   List<dynamic> _bebidas = [];
   bool _loading = true;
   int? _menuId;
+  int? _updatingProductoId; // <-- NUEVO
 
   @override
   void initState() {
@@ -108,6 +109,64 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
       }
     } catch (e) {
       print('[VISTA][DUENO_BEBIDAS] Error al obtener productos: $e');
+    }
+  }
+
+  // NUEVO: Alternar disponibilidad por PUT
+  Future<void> _toggleDisponibilidad(Map<String, dynamic> bebida) async {
+    if (_menuId == null) return;
+    final productoId = bebida['producto_id'];
+    setState(() => _updatingProductoId = productoId);
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final url = AppConfig.getApiUrl(
+      AppConfig.actualizarProductoEndpoint(widget.restauranteId, _menuId!, productoId),
+    );
+    final disponibleActual = bebida['disponible'] == 1;
+    final nuevoDisponible = !disponibleActual;
+
+    final payload = {
+      'nombre': (bebida['nombre_producto'] ?? '').toString(),
+      'precio': double.tryParse(bebida['precio'].toString()) ?? bebida['precio'],
+      'descripcion': (bebida['descripcion'] ?? '').toString(),
+      'disponible': nuevoDisponible,
+      'tipo': bebida['tipo'] is int ? bebida['tipo'] : int.tryParse('${bebida['tipo']}') ?? 1,
+    };
+
+    print('[VISTA][DUENO_BEBIDAS] PUT disponibilidad productoId=$productoId url=$url payload=$payload');
+
+    try {
+      final resp = await http.put(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(payload),
+      );
+      print('[VISTA][DUENO_BEBIDAS] Respuesta PUT: ${resp.statusCode} - ${resp.body}');
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        setState(() {
+          bebida['disponible'] = nuevoDisponible ? 1 : 0;
+          _updatingProductoId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Disponibilidad actualizada (${nuevoDisponible ? 'Disponible' : 'No disponible'})')),
+        );
+      } else {
+        setState(() => _updatingProductoId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      setState(() => _updatingProductoId = null);
+      print('[VISTA][DUENO_BEBIDAS] Error PUT disponibilidad: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión')),
+      );
     }
   }
 
@@ -298,10 +357,22 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.end,
                                         children: [
-                                          Icon(
-                                            disponible ? Icons.check_circle : Icons.cancel,
-                                            color: disponible ? Colors.green.shade700 : Colors.red.shade700,
-                                            size: 28, // ligeramente más grande
+                                          InkWell(
+                                            onTap: _updatingProductoId == bebida['producto_id']
+                                                ? null
+                                                : () => _toggleDisponibilidad(bebida),
+                                            borderRadius: BorderRadius.circular(20),
+                                            child: _updatingProductoId == bebida['producto_id']
+                                                ? const SizedBox(
+                                                    width: 28,
+                                                    height: 28,
+                                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                                  )
+                                                : Icon(
+                                                    disponible ? Icons.check_circle : Icons.cancel,
+                                                    color: disponible ? Colors.green.shade700 : Colors.red.shade700,
+                                                    size: 28,
+                                                  ),
                                           ),
                                           const SizedBox(height: 12),
                                           IconButton(

@@ -1,3 +1,6 @@
+import 'dart:async'; // +++
+import 'dart:io' show WebSocket; // +++
+import 'package:flutter/foundation.dart' show kIsWeb; // +++
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/platos_rest_page.dart'; // Asegúrate de importar correctamente
@@ -31,12 +34,32 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
   int? _menuId;
   List<dynamic> _productos = [];
   bool _loading = true;
+  // +++ WebSocket
+  WebSocket? _ws;
+  StreamSubscription? _wsSub;
+  bool _wsConnecting = false;
+
+  // +++ NUEVO: stream de actualizaciones de productos (solo la tarjeta afectada se actualiza)
+  final StreamController<Map<String, dynamic>> _productUpdates =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   @override
   void initState() {
     super.initState();
     print('[VISTA][MENU] Entrando a MenuRestaurante: restaurantId=${widget.restaurantId}, name=${widget.name}, phone=${widget.phone}, imageUrl=${widget.imageUrl}');
     _fetchRestauranteDetalle();
+  }
+
+  @override
+  void dispose() {
+    // +++ Cerrar WS
+    _wsSub?.cancel();
+    _wsSub = null;
+    _ws?.close();
+    _ws = null;
+    // +++ Cerrar stream
+    _productUpdates.close();
+    super.dispose();
   }
 
   Future<void> _fetchRestauranteDetalle() async {
@@ -73,6 +96,8 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
         });
         if (_menuId != null) {
           await _fetchProductos();
+          // +++ Conectar WS una vez tengamos menu_id
+          _initWebSocket();
         }
       }
     } catch (e) {
@@ -116,6 +141,129 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
     } catch (e) {
       print('[VISTA][MENU] Error al obtener productos: $e');
       // Puedes mostrar un error si lo deseas
+    }
+  }
+
+  // +++ Conexión WebSocket y manejo de eventos
+  void _initWebSocket() async {
+    if (kIsWeb) {
+      print('[WSO][MENU] Saltando WS en Web');
+      return;
+    }
+    if (_menuId == null) {
+      print('[WSO][MENU] Aún no hay menu_id, no se conecta');
+      return;
+    }
+    if (_ws != null || _wsConnecting) {
+      print('[WSO][MENU] Ya conectado o conectando, omitir');
+      return;
+    }
+    final wsUrl = AppConfig.getWebSocketUrl();
+    print('[WSO][MENU] Conectando a: $wsUrl');
+    _wsConnecting = true;
+    try {
+      final ws = await WebSocket.connect(wsUrl);
+      _ws = ws;
+      _wsConnecting = false;
+      print('[WSO][MENU] Conectado al WS');
+
+      // +++ SUSCRIPCIÓN AL CANAL PÚBLICO "restaurantes" (Pusher-like)
+      final subscribeMsg = {
+        'event': 'pusher:subscribe',
+        'data': {'channel': AppConfig.websocketChannelRestaurantes},
+      };
+      ws.add(jsonEncode(subscribeMsg));
+      print('[WSO][MENU] Enviada suscripción al canal: ${AppConfig.websocketChannelRestaurantes}');
+
+      _wsSub = ws.listen(
+        (msg) => _onWsMessage(msg),
+        onDone: () {
+          print('[WSO][MENU] WS cerrado, reintentando en 5s');
+          _scheduleReconnect();
+        },
+        onError: (e) {
+          print('[WSO][MENU] Error WS: $e');
+          _scheduleReconnect();
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      _wsConnecting = false;
+      print('[WSO][MENU] Falló conexión WS: $e');
+      _scheduleReconnect();
+    }
+  }
+
+  void _scheduleReconnect() {
+    _wsSub?.cancel();
+    _wsSub = null;
+    _ws?.close();
+    _ws = null;
+    _wsConnecting = false;
+    if (!mounted) return;
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      if (_menuId != null) _initWebSocket();
+    });
+  }
+
+  void _onWsMessage(dynamic message) {
+    print('[WSO][MENU] Mensaje: $message');
+    try {
+      final outer = json.decode(message is String ? message : message.toString());
+      final event = outer['event']?.toString();
+
+      // Ignora handshakes de Pusher
+      if (event == 'pusher:connection_established' || event == 'pusher_internal:subscription_succeeded') {
+        print('[WSO][MENU] Evento de control Pusher: $event');
+        return;
+      }
+
+      if (event != 'producto.disponibilidad.updated') {
+        // No es evento de producto, ignorar
+        return;
+      }
+
+      // El campo data puede venir como string JSON
+      final dataField = outer['data'];
+      final inner = dataField is String ? json.decode(dataField) : dataField;
+      print('[WSO][MENU] Evento producto.disponibilidad.updated -> $inner');
+
+      final int? eventoMenuId = inner['menu_id'] is int
+          ? inner['menu_id']
+          : int.tryParse(inner['menu_id']?.toString() ?? '');
+      if (_menuId == null || eventoMenuId == null || eventoMenuId != _menuId) {
+        print('[WSO][MENU] Evento de otro menú (eventoMenuId=$eventoMenuId, _menuId=$_menuId), ignorar');
+        return;
+      }
+
+      final int? productoId = inner['id'] is int ? inner['id'] : int.tryParse(inner['id']?.toString() ?? '');
+      if (productoId == null) {
+        print('[WSO][MENU] Evento sin id de producto, ignorar');
+        return;
+      }
+
+      final int disponible = inner['disponible'] is int
+          ? inner['disponible']
+          : (inner['disponible'] == true ? 1 : 0);
+
+      // +++ Normaliza y emite SOLO la actualización del producto
+      final normalized = <String, dynamic>{
+        'id': productoId,
+        'producto_id': productoId,
+        'menu_id': eventoMenuId,
+        'disponible': disponible,
+        if (inner['nombre_producto'] != null) 'nombre_producto': inner['nombre_producto'],
+        if (inner['precio'] != null) 'precio': inner['precio'],
+        if (inner['descripcion'] != null) 'descripcion': inner['descripcion'],
+        if (inner['imagen'] != null) 'imagen': inner['imagen'],
+      };
+      print('[WSO][MENU] Emite actualización a stream: $normalized');
+      _productUpdates.add(normalized);
+
+      // No hacemos setState global para no recomponer toda la lista
+    } catch (e) {
+      print('[WSO][MENU] Error al procesar mensaje: $e');
     }
   }
 
@@ -204,8 +352,9 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
             : IndexedStack(
                 index: _selectedIndex,
                 children: [
-                  PlatosRest(productos: platos),
-                  BebidasRest(productos: bebidas),
+                  // +++ Pasa el stream a las páginas
+                  PlatosRest(productos: platos, updatesStream: _productUpdates.stream),
+                  BebidasRest(productos: bebidas, updatesStream: _productUpdates.stream),
                 ],
               ),
         bottomNavigationBar: BottomNavigationBar(
