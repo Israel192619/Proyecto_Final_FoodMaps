@@ -64,4 +64,21 @@ class AppConfig {
   // Alias explícito para cuando se use POST con imagen (misma ruta, distinto metodo HTTP)
   static String actualizarProductoPostEndpoint(int restauranteId, int menuId, int productoId) =>
       '/clientes/restaurantes/$restauranteId/menus/$menuId/productos/$productoId';
+
+  // --- NUEVO: eventos de producto por WebSocket ---
+  static const String wsEventProductoDisponibilidadUpdated = 'producto.disponibilidad.updated';
+  static const String wsEventProductoUpdated = 'producto.updated';
+
+  static const List<String> wsAcceptedProductEvents = <String>[
+    wsEventProductoDisponibilidadUpdated,
+    wsEventProductoUpdated,
+    // agrega aquí otras variantes si tu backend las emite (p.ej. 'producto.precio.updated')
+  ];
+
+  static bool isProductUpdateEvent(String? event) {
+    if (event == null) return false;
+    if (wsAcceptedProductEvents.contains(event)) return true;
+    // fallback genérico: cualquier evento 'producto.*.updated'
+    return event.startsWith('producto.') && event.endsWith('.updated');
+  }
 }

@@ -219,7 +219,9 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
         return;
       }
 
-      if (event != 'producto.disponibilidad.updated') {
+      // ACEPTA cualquier evento de actualización de producto (no solo disponibilidad)
+      final isProductoUpdate = AppConfig.isProductUpdateEvent(event);
+      if (!isProductoUpdate) {
         // No es evento de producto, ignorar
         return;
       }
@@ -227,7 +229,7 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
       // El campo data puede venir como string JSON
       final dataField = outer['data'];
       final inner = dataField is String ? json.decode(dataField) : dataField;
-      print('[WSO][MENU] Evento producto.disponibilidad.updated -> $inner');
+      print('[WSO][MENU] Evento de producto ($event) -> $inner');
 
       final int? eventoMenuId = inner['menu_id'] is int
           ? inner['menu_id']
@@ -243,16 +245,17 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
         return;
       }
 
-      final int disponible = inner['disponible'] is int
-          ? inner['disponible']
-          : (inner['disponible'] == true ? 1 : 0);
+      final dynamic disponibleDyn = inner['disponible'];
+      final int? disponibleNorm = disponibleDyn == null
+          ? null
+          : (disponibleDyn is int ? disponibleDyn : (disponibleDyn == true ? 1 : 0));
 
-      // +++ Normaliza y emite SOLO la actualización del producto
+      // Normaliza y emite SOLO la actualización del producto con todos los campos disponibles
       final normalized = <String, dynamic>{
         'id': productoId,
         'producto_id': productoId,
         'menu_id': eventoMenuId,
-        'disponible': disponible,
+        if (disponibleNorm != null) 'disponible': disponibleNorm,
         if (inner['nombre_producto'] != null) 'nombre_producto': inner['nombre_producto'],
         if (inner['precio'] != null) 'precio': inner['precio'],
         if (inner['descripcion'] != null) 'descripcion': inner['descripcion'],
