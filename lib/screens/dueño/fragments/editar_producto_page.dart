@@ -44,6 +44,8 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
   bool _editarDisponibilidad = false;
   bool _editarImagen = false;
 
+  static const int _maxImageBytes = 2 * 1024 * 1024; // 2MB
+
   @override
   void initState() {
     super.initState();
@@ -193,25 +195,33 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
 
     final picker = ImagePicker();
 
+    Future<void> _setBytes(Uint8List bytes, String nameOrPath) async {
+      if (bytes.length > _maxImageBytes) {
+        final sizeMb = (bytes.length / (1024 * 1024)).toStringAsFixed(2);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('La imagen seleccionada pesa $sizeMb MB. Máximo permitido 2MB.')),
+        );
+        return;
+      }
+      setState(() {
+        _imageBytes = bytes;
+        _imagePath = nameOrPath;
+        _editarImagen = true;
+      });
+      print('[VISTA][EDITAR_PRODUCTO] Imagen seleccionada (${bytes.length} bytes)');
+    }
+
     if (kIsWeb) {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
-        setState(() {
-          _imageBytes = bytes;
-          _imagePath = picked.name;
-          _editarImagen = true;
-        });
+        await _setBytes(bytes, picked.name);
       }
     } else if (isDesktop) {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
-        setState(() {
-          _imageBytes = bytes;
-          _imagePath = picked.path;
-          _editarImagen = true;
-        });
+        await _setBytes(bytes, picked.path);
       }
     } else {
       final source = await showDialog<ImageSource>(
@@ -239,14 +249,19 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
         final picked = await picker.pickImage(source: source);
         if (picked != null) {
           final bytes = await picked.readAsBytes();
-          setState(() {
-            _imageBytes = bytes;
-            _imagePath = picked.path;
-            _editarImagen = true;
-          });
+          await _setBytes(bytes, picked.path);
         }
       }
     }
+  }
+
+  void _limpiarImagenSeleccionada() {
+    setState(() {
+      _imageBytes = null;
+      _imagePath = null;
+      _editarImagen = false;
+    });
+    print('[VISTA][EDITAR_PRODUCTO] Imagen seleccionada limpiada');
   }
 
   Future<void> _guardarCambios() async {
@@ -383,360 +398,303 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasChanges = _editarNombre || _editarPrecio || _editarDescripcion || _editarDisponibilidad || _editarImagen;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Card(
-        elevation: 12,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: hasChanges ? Colors.orange : (isDark ? Colors.grey[700]! : Colors.grey[200]!),
-            width: hasChanges ? 3 : 1,
-          ),
-        ),
-        color: isDark ? Colors.grey[850] : Colors.white,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: isDark
-                ? LinearGradient(
-                    colors: [Colors.grey[800]!, Colors.grey[850]!],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  )
-                : LinearGradient(
-                    colors: [Colors.white, Colors.red.shade50],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Primer contenedor: Imagen (clickeable)
-                GestureDetector(
-                  onTap: () => _editarCampo('imagen'),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _editarImagen
-                            ? Colors.orange
-                            : (isDark ? Colors.grey[600]! : Colors.grey[300]!),
-                        width: _editarImagen ? 3 : 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            child: _editarImagen && _imageBytes != null
-                                ? Image.memory(
-                                    _imageBytes!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : _currentImageUrl!.isNotEmpty
-                                    ? Image.network(
-                                        _currentImageUrl!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) =>
-                                            Container(
-                                              color: isDark ? Colors.grey[700] : Colors.grey[200],
-                                              child: Icon(
-                                                _tipoProducto == 0 ? Icons.food_bank : Icons.local_drink,
-                                                size: 50,
-                                                color: Colors.red.shade400,
-                                              ),
-                                            ),
-                                      )
-                                    : Container(
-                                        color: isDark ? Colors.grey[700] : Colors.grey[200],
-                                        child: Icon(
-                                          _tipoProducto == 0 ? Icons.food_bank : Icons.local_drink,
-                                          size: 50,
-                                          color: Colors.red.shade400,
-                                        ),
-                                      ),
-                          ),
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.edit,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                          if (_editarImagen)
-                            Positioned(
-                              bottom: 4,
-                              left: 4,
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange,
-                                  borderRadius: BorderRadius.circular(8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isNarrow = constraints.maxWidth < 560; // umbral para apilar
+        final double imageSize = isNarrow ? 120 : 100;
+
+        final imageWidget = GestureDetector(
+          onTap: () => _editarCampo('imagen'),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _editarImagen ? Colors.orange : (isDark ? Colors.grey[600]! : Colors.grey[300]!),
+                width: _editarImagen ? 3 : 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  SizedBox(
+                    width: imageSize,
+                    height: imageSize,
+                    child: _editarImagen && _imageBytes != null
+                        ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                        : (_currentImageUrl != null && _currentImageUrl!.isNotEmpty)
+                            ? Image.network(
+                                _currentImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: isDark ? Colors.grey[700] : Colors.grey[200],
+                                  child: Icon(
+                                    _tipoProducto == 0 ? Icons.food_bank : Icons.local_drink,
+                                    size: 50,
+                                    color: Colors.red.shade400,
+                                  ),
                                 ),
+                              )
+                            : Container(
+                                color: isDark ? Colors.grey[700] : Colors.grey[200],
                                 child: Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 12,
+                                  _tipoProducto == 0 ? Icons.food_bank : Icons.local_drink,
+                                  size: 50,
+                                  color: Colors.red.shade400,
                                 ),
                               ),
-                            ),
-                        ],
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      child: const Icon(Icons.edit, color: Colors.white, size: 16),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                ],
+              ),
+            ),
+          ),
+        );
 
-                // Segundo contenedor: Nombre y descripción (clickeables)
+        final imageActions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 4),
+            TextButton.icon(
+              onPressed: _seleccionarImagen,
+              icon: const Icon(Icons.image, size: 18),
+              label: const Text('Cambiar'),
+            ),
+            if (_imageBytes != null) ...[
+              const SizedBox(width: 4),
+              TextButton.icon(
+                onPressed: _limpiarImagenSeleccionada,
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Quitar'),
+              ),
+            ],
+          ],
+        );
+
+        final nombreWidget = GestureDetector(
+          onTap: () => _editarCampo('nombre'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: _editarNombre ? Colors.orange.withOpacity(0.2) : (isDark ? Colors.grey[800]?.withOpacity(0.3) : Colors.red.shade50),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _editarNombre ? Colors.orange : (isDark ? Colors.grey[700]! : Colors.red.shade100),
+                width: _editarNombre ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Nombre clickeable
-                      GestureDetector(
-                        onTap: () => _editarCampo('nombre'),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: _editarNombre
-                                ? Colors.orange.withOpacity(0.2)
-                                : (isDark ? Colors.grey[800]?.withOpacity(0.3) : Colors.red.shade50),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _editarNombre
-                                  ? Colors.orange
-                                  : (isDark ? Colors.grey[700]! : Colors.red.shade100),
-                              width: _editarNombre ? 2 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _nombreController.text.isEmpty ? 'Sin nombre' : _nombreController.text,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: isDark ? Colors.white : Colors.red.shade700,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                Icons.edit,
-                                size: 16,
-                                color: _editarNombre ? Colors.orange : Colors.grey,
-                              ),
-                              if (_editarNombre) ...[
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: Colors.orange,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Descripción clickeable
-                      GestureDetector(
-                        onTap: () => _editarCampo('descripcion'),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: _editarDescripcion
-                                ? Colors.orange.withOpacity(0.2)
-                                : (isDark ? Colors.grey[800]?.withOpacity(0.3) : Colors.red.shade50),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _editarDescripcion
-                                  ? Colors.orange
-                                  : (isDark ? Colors.grey[700]! : Colors.red.shade100),
-                              width: _editarDescripcion ? 2 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _descripcionController.text.isEmpty
-                                      ? 'Sin descripción'
-                                      : _descripcionController.text,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark ? Colors.grey[300] : Colors.grey[700],
-                                    height: 1.3,
-                                  ),
-                                  // Se elimina el truncado para mostrar todo el texto
-                                  // maxLines: 3,
-                                  // overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Icon(
-                                Icons.edit,
-                                size: 16,
-                                color: _editarDescripcion ? Colors.orange : Colors.grey,
-                              ),
-                              if (_editarDescripcion) ...[
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: Colors.orange,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _nombreController.text.isEmpty ? 'Sin nombre' : _nombreController.text,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: isDark ? Colors.white : Colors.red.shade700,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                Icon(Icons.edit, size: 16, color: _editarNombre ? Colors.orange : Colors.grey),
+                if (_editarNombre) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.check_circle, size: 16, color: Colors.orange),
+                ],
+              ],
+            ),
+          ),
+        );
 
-                // Tercer contenedor: Disponibilidad y precio (clickeables)
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.topRight,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // Disponibilidad clickeable
-                        GestureDetector(
-                          onTap: () => _editarCampo('disponibilidad'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _editarDisponibilidad
-                                  ? Colors.orange.withOpacity(0.2)
-                                  : (_disponible ? Colors.green.shade100 : Colors.red.shade100),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _editarDisponibilidad
-                                    ? Colors.orange
-                                    : (_disponible ? Colors.green.shade300 : Colors.red.shade300),
-                                width: _editarDisponibilidad ? 2 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _disponible ? Icons.check_circle : Icons.cancel,
-                                  color: _editarDisponibilidad
-                                      ? Colors.orange
-                                      : (_disponible ? Colors.green.shade700 : Colors.red.shade700),
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _disponible ? 'Disponible' : 'No disponible',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _editarDisponibilidad
-                                        ? Colors.orange
-                                        : (_disponible ? Colors.green.shade700 : Colors.red.shade700),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (_editarDisponibilidad) ...[
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.check_circle,
-                                    size: 12,
-                                    color: Colors.orange,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Precio clickeable
-                        GestureDetector(
-                          onTap: () => _editarCampo('precio'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: _editarPrecio
-                                  ? LinearGradient(
-                                      colors: [Colors.orange.shade400, Colors.orange.shade600],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    )
-                                  : LinearGradient(
-                                      colors: [Colors.red.shade400, Colors.red.shade600],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (_editarPrecio ? Colors.orange : Colors.red).withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Bs. ${_precioController.text.isEmpty ? '0' : _precioController.text}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                if (_editarPrecio) ...[
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.check_circle,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+        final descripcionWidget = GestureDetector(
+          onTap: () => _editarCampo('descripcion'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: _editarDescripcion ? Colors.orange.withOpacity(0.2) : (isDark ? Colors.grey[800]?.withOpacity(0.3) : Colors.red.shade50),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _editarDescripcion ? Colors.orange : (isDark ? Colors.grey[700]! : Colors.red.shade100),
+                width: _editarDescripcion ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _descripcionController.text.isEmpty ? 'Sin descripción' : _descripcionController.text,
+                    style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[300] : Colors.grey[700], height: 1.3),
+                  ),
+                ),
+                Icon(Icons.edit, size: 16, color: _editarDescripcion ? Colors.orange : Colors.grey),
+                if (_editarDescripcion) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.check_circle, size: 16, color: Colors.orange),
+                ],
+              ],
+            ),
+          ),
+        );
+
+        final disponibilidadWidget = GestureDetector(
+          onTap: () => _editarCampo('disponibilidad'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _editarDisponibilidad ? Colors.orange.withOpacity(0.2) : (_disponible ? Colors.green.shade100 : Colors.red.shade100),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _editarDisponibilidad ? Colors.orange : (_disponible ? Colors.green.shade300 : Colors.red.shade300),
+                width: _editarDisponibilidad ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _disponible ? Icons.check_circle : Icons.cancel,
+                  color: _editarDisponibilidad ? Colors.orange : (_disponible ? Colors.green.shade700 : Colors.red.shade700),
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _disponible ? 'Disponible' : 'No disponible',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _editarDisponibilidad ? Colors.orange : (_disponible ? Colors.green.shade700 : Colors.red.shade700),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
+        );
+
+        final precioWidget = GestureDetector(
+          onTap: () => _editarCampo('precio'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: _editarPrecio
+                  ? LinearGradient(colors: [Colors.orange.shade400, Colors.orange.shade600], begin: Alignment.topLeft, end: Alignment.bottomRight)
+                  : LinearGradient(colors: [Colors.red.shade400, Colors.red.shade600], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: (_editarPrecio ? Colors.orange : Colors.red).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Bs. ${_precioController.text.isEmpty ? '0' : _precioController.text}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                if (_editarPrecio) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.check_circle, size: 16, color: Colors.white),
+                ],
+              ],
+            ),
+          ),
+        );
+
+        final leftBlock = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            imageWidget,
+            const SizedBox(height: 10),
+            precioWidget, // Precio debajo de la imagen (alineado con diseño de dueño)
+            const SizedBox(height: 8),
+            imageActions,
+          ],
+        );
+
+        final middleBlock = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            nombreWidget,
+            const SizedBox(height: 12),
+            descripcionWidget,
+          ],
+        );
+
+        final rightBlock = ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 120, maxWidth: 200),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              disponibilidadWidget,
+            ],
+          ),
+        );
+
+        final content = isNarrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leftBlock,
+                  const SizedBox(height: 16),
+                  middleBlock,
+                  const SizedBox(height: 16),
+                  rightBlock,
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leftBlock,
+                  const SizedBox(width: 16),
+                  Expanded(child: middleBlock),
+                  const SizedBox(width: 16),
+                  rightBlock,
+                ],
+              );
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          child: Card(
+            elevation: 12,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: hasChanges ? Colors.orange : (isDark ? Colors.grey[700]! : Colors.grey[200]!),
+                width: hasChanges ? 3 : 1,
+              ),
+            ),
+            color: isDark ? Colors.grey[850] : Colors.white,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: isDark
+                    ? LinearGradient(colors: [Colors.grey[800]!, Colors.grey[850]!], begin: Alignment.topCenter, end: Alignment.bottomCenter)
+                    : LinearGradient(colors: [Colors.white, Colors.red.shade50], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: content,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
