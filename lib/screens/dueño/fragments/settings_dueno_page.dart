@@ -7,11 +7,33 @@ import '../../../config/config.dart';
 import '../../../config/theme_provider.dart';
 import '../../publica/new_restaurante.dart' show SeleccionarUbicacionMapaScreen;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../editar_restaurante.dart';
+import '../maps_due_activity.dart';
 
-class SettingsDuenoPage extends StatelessWidget {
+class SettingsDuenoPage extends StatefulWidget {
   final int restauranteId;
 
   const SettingsDuenoPage({Key? key, required this.restauranteId}) : super(key: key);
+
+  @override
+  State<SettingsDuenoPage> createState() => _SettingsDuenoPageState();
+}
+
+class _SettingsDuenoPageState extends State<SettingsDuenoPage> {
+  bool _mantenerSesion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarPreferencias();
+  }
+
+  Future<void> _cargarPreferencias() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _mantenerSesion = prefs.getBool('mantenersesion') ?? false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,25 +106,29 @@ class SettingsDuenoPage extends StatelessWidget {
                           context,
                           icon: Icons.edit,
                           title: 'Editar información',
-                          onTap: () => _editarInformacion(),
+                          onTap: () => _editarInformacion(context),
                         ),
-                        _buildSettingItem(
-                          context,
-                          icon: Icons.photo,
-                          title: 'Cambiar imagen',
-                          onTap: () => _cambiarImagen(),
+                        SwitchListTile(
+                          title: const Text("Mantener sesión iniciada"),
+                          value: _mantenerSesion,
+                          activeColor: Colors.red,
+                          onChanged: (value) async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('mantenersesion', value);
+                            setState(() {
+                              _mantenerSesion = value;
+                            });
+                          },
+                          secondary: const Icon(
+                            Icons.login,
+                            color: Colors.red,
+                          ),
                         ),
                         _buildSettingItem(
                           context,
                           icon: Icons.location_on,
                           title: 'Actualizar ubicación',
                           onTap: () => _actualizarUbicacion(context),
-                        ),
-                        _buildSettingItem(
-                          context,
-                          icon: Icons.security,
-                          title: 'Seguridad',
-                          onTap: () => _mostrarSeguridad(),
                         ),
                         _buildSettingItem(
                           context,
@@ -178,26 +204,135 @@ class SettingsDuenoPage extends StatelessWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      hoverColor: Colors.red.withValues(alpha: 0.08),
+      hoverColor: Colors.red.withOpacity(0.08),
     );
   }
 
-  void _editarInformacion() {
-    // Implementar lógica de edición
+  void _editarInformacion(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final restauranteId = widget.restauranteId;
+    final restauranteSeleccionadoJson = prefs.getString('restaurante_seleccionado');
+
+    if (restauranteSeleccionadoJson != null) {
+      final restauranteData = jsonDecode(restauranteSeleccionadoJson);
+
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EditarRestauranteScreen(
+            restauranteId: restauranteId,
+            restauranteData: restauranteData,
+          ),
+        ),
+      );
+
+      if (result == true) {
+        // Si se editó con éxito, actualizar preferencias
+        _cargarPreferencias();
+
+        // Notificar a la actividad principal para recargar los datos
+        _actualizarActividadPrincipal(context);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cargar la información del restaurante')),
+      );
+    }
   }
 
-  void _cambiarImagen() {
-    // Implementar lógica para cambiar imagen
+  // Método para actualizar la actividad principal
+  void _actualizarActividadPrincipal(BuildContext context) {
+    final scaffold = ScaffoldMessenger.of(context);
+
+    try {
+      // Buscar la instancia de MapsDueActivity en el árbol de widgets
+      final MapsDueActivity? ancestor = context.findAncestorWidgetOfExactType<MapsDueActivity>();
+
+      if (ancestor != null) {
+        print('[VISTA SETTINGS] Encontrada instancia de MapsDueActivity, accediendo a su estado global');
+
+        // Obtener el estado global usando el contexto actual
+        final state = context.findRootAncestorStateOfType<State<MapsDueActivity>>();
+
+        if (state != null) {
+          // Acceder al método público del state usando dynamic para bypass de tipo
+          (state as dynamic).recargarDatosRestaurante();
+          print('[VISTA SETTINGS] Datos recargados con éxito');
+
+          scaffold.showSnackBar(
+            const SnackBar(
+              content: Text('Información actualizada correctamente'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            )
+          );
+        } else {
+          print('[VISTA SETTINGS] No se encontró el estado de MapsDueActivity');
+          _mostrarSnackbarYReintentar(scaffold);
+        }
+      } else {
+        print('[VISTA SETTINGS] No se encontró la instancia de MapsDueActivity');
+        _mostrarSnackbarYReintentar(scaffold);
+      }
+    } catch (e) {
+      print('[VISTA SETTINGS] Error al actualizar actividad principal: $e');
+      _mostrarSnackbarYReintentar(scaffold);
+    }
+  }
+
+  void _mostrarSnackbarYReintentar(ScaffoldMessengerState scaffold) {
+    // Plan B: Actualizar usando la navegación
+    scaffold.showSnackBar(
+      const SnackBar(
+        content: Text('Actualizando información...'),
+        duration: Duration(seconds: 1),
+      )
+    );
+
+    // Esperar un momento y luego navegar de vuelta a la página principal
+    Future.delayed(const Duration(seconds: 1), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MapsDueActivity(restauranteId: widget.restauranteId),
+        )
+      );
+    });
   }
 
   void _actualizarUbicacion(BuildContext context) async {
-    LatLng initialPosition = LatLng(-17.382202, -66.151789);
+    final prefs = await SharedPreferences.getInstance();
+    final restauranteSeleccionadoJson = prefs.getString('restaurante_seleccionado');
+    LatLng initialPosition = LatLng(-17.382202, -66.151789); // Default
+    double initialZoom = 18;
+
+    if (restauranteSeleccionadoJson != null) {
+      final restauranteData = jsonDecode(restauranteSeleccionadoJson);
+      final ubicacion = restauranteData['ubicacion'] as String?;
+
+      if (ubicacion != null && ubicacion.isNotEmpty) {
+        final parts = ubicacion.split(',');
+        if (parts.length >= 3) {
+          final lat = double.tryParse(parts[0]);
+          final lng = double.tryParse(parts[1]);
+          final zoom = double.tryParse(parts[2]);
+
+          if (lat != null && lng != null) {
+            initialPosition = LatLng(lat, lng);
+          }
+          if (zoom != null) {
+            initialZoom = zoom;
+          }
+        }
+      }
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SeleccionarUbicacionMapaScreen(
           initialPosition: initialPosition,
-          initialZoom: 18,
+          initialZoom: initialZoom,
         ),
       ),
     );
@@ -207,7 +342,7 @@ class SettingsDuenoPage extends StatelessWidget {
       final ubicacion = '${latlng.latitude},${latlng.longitude},${zoom.toStringAsFixed(2)}';
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      final restauranteId = prefs.getInt('restaurante_id') ?? this.restauranteId;
+      final restauranteId = prefs.getInt('restaurante_id') ?? this.widget.restauranteId;
       final url = '${AppConfig.apiBaseUrl}${AppConfig.actualizarRestauranteEndpoint(restauranteId)}';
       try {
         final response = await http.put(
@@ -219,6 +354,12 @@ class SettingsDuenoPage extends StatelessWidget {
           body: jsonEncode({'ubicacion': ubicacion}),
         );
         if (response.statusCode == 200) {
+          // Actualizar el restaurante seleccionado en SharedPreferences
+          final updatedData = jsonDecode(response.body);
+          if (updatedData['data'] != null) {
+            await prefs.setString('restaurante_seleccionado', jsonEncode(updatedData['data']));
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ubicación actualizada correctamente')),
           );
@@ -229,14 +370,10 @@ class SettingsDuenoPage extends StatelessWidget {
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de red al actualizar ubicación')),
+          const SnackBar(content: Text('Error de red al actualizar ubicación')),
         );
       }
     }
-  }
-
-  void _mostrarSeguridad() {
-    // Implementar lógica de seguridad
   }
 
   void _cerrarSesion(BuildContext context) async {
@@ -267,11 +404,24 @@ class SettingsDuenoPage extends StatelessWidget {
       );
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+
       // Guarda el modo oscuro antes de limpiar
       final mapTheme = prefs.getString('map_theme');
+
       // Borra restaurante seleccionado
       await prefs.remove('restaurante_id');
       await prefs.remove('restaurante_seleccionado');
+
+      // Si no mantiene la sesión iniciada, limpiar credenciales
+      print('[VISTA SETTINGS] Cerrando sesión, mantener sesión: $_mantenerSesion');
+      if (!_mantenerSesion) {
+        print('[VISTA SETTINGS] Eliminando credenciales guardadas');
+        await prefs.remove('username');
+        await prefs.remove('password');
+      } else {
+        print('[VISTA SETTINGS] Manteniendo credenciales guardadas');
+      }
+
       // Llamada a la API para cerrar sesión
       if (token != null && token.isNotEmpty) {
         try {
@@ -287,7 +437,13 @@ class SettingsDuenoPage extends StatelessWidget {
           print('Error al llamar logout: $e');
         }
       }
-      await prefs.clear();
+
+      // Siempre eliminar el token al cerrar sesión
+      await prefs.remove('auth_token');
+
+      // Marcar como logout forzado
+      await prefs.setBool('forcedLogout', true);
+
       // Restaurar el modo oscuro después de limpiar
       if (mapTheme != null) {
         await prefs.setString('map_theme', mapTheme);
@@ -298,6 +454,7 @@ class SettingsDuenoPage extends StatelessWidget {
           Provider.of<ThemeProvider>(context, listen: false).setDarkMode(false);
         }
       }
+
       // Cerrar loader modal
       Navigator.of(context, rootNavigator: true).pop();
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);

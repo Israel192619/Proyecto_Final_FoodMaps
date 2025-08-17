@@ -94,6 +94,11 @@ class AuthWrapper extends StatelessWidget {
         restaurantes = List<Map<String, dynamic>>.from(jsonDecode(restaurantesJson));
       } catch (_) {}
     }
+
+    // Imprimir logs de diagnóstico para depurar problemas de sesión
+    print('[AUTH_WRAPPER] Estado actual: token=${token != null}, mantenersesion=$keepSession');
+    print('[AUTH_WRAPPER] Credenciales: username=${username != null}, password=${password != null}');
+
     return {
       'token': token,
       'keepSession': keepSession,
@@ -131,13 +136,25 @@ class AuthWrapper extends StatelessWidget {
           print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a LoginScreen por forcedLogout');
           return const LoginScreen();
         }
-        if (token == null || token.isEmpty || (!keepSession && (username == null || password == null))) {
-          print('[VISTA AUTHWRAPPER] No autenticado, mostrando LoginScreen');
-          print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a LoginScreen por no autenticado');
+
+        // Verificar si tenemos un token válido
+        if (token == null || token.isEmpty) {
+          print('[VISTA AUTHWRAPPER] No hay token, mostrando LoginScreen');
+          print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a LoginScreen por falta de token');
           return const LoginScreen();
         }
+
+        // Si no mantenemos sesión, verificar que tengamos credenciales para auto-login
+        if (!keepSession && (username == null || password == null)) {
+          print('[VISTA AUTHWRAPPER] No mantener sesión y sin credenciales, mostrando LoginScreen');
+          print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a LoginScreen por no mantener sesión');
+          return const LoginScreen();
+        }
+
+        // A partir de aquí sabemos que hay token y que o bien mantenemos sesión o tenemos credenciales
+
+        // Si es dueño (rol 2)
         if (userRole == 2) {
-          // Dueño
           if (restaurantes.isEmpty) {
             print('[VISTA AUTHWRAPPER] Dueño sin restaurantes, mostrando NewRestauranteScreen');
             print('[VISTA AUTHWRAPPER] [REDIR] Redirigiendo a NewRestauranteScreen por dueño sin restaurantes');

@@ -388,6 +388,12 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     }
   }
 
+  // Metodo público para recargar datos del restaurante
+  void recargarDatosRestaurante() {
+    print('[VISTA MAPSDUE] Recargando datos del restaurante después de edición');
+    _fetchRestaurantData();
+  }
+
   @override
   Widget build(BuildContext context) {
     print('[VISTA MAPSDUE] build MapsDueActivity restauranteId=${widget.restauranteId}');
