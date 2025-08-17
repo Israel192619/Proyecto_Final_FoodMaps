@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:url_launcher/url_launcher.dart'; // Añade este import
+import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../config/theme_provider.dart';
 import '../../../config/config.dart';
 import 'package:foodmaps/constants/restaurant_info_window.dart';
@@ -37,6 +38,7 @@ class _MapsPageState extends State<MapsPage> {
   // Guarda el último modo de tema para detectar cambios
   bool? _lastIsDark;
   bool _mapStyleApplied = false;
+  WebSocketChannel? _channel;
 
   @override
   void initState() {
@@ -52,6 +54,145 @@ class _MapsPageState extends State<MapsPage> {
     } else {
       _checkPermissionAndFetch();
     }
+    _connectWebSocketChannel();
+  }
+
+  void _connectWebSocketChannel() {
+    if (_channel != null) {
+      print('[WSO][CLIENTE] Cerrando canal WebSocket anterior antes de reconectar');
+      _channel?.sink.close();
+      _channel = null;
+    }
+    final wsUrl = AppConfig.getWebSocketUrl();
+    print('[WSO][CLIENTE] WebSocket: $wsUrl');
+    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+    final subscribeMsg = {
+      "event": "pusher:subscribe",
+      "data": {"channel": "restaurantes"}
+    };
+    print('[WSO][CLIENTE] Enviando mensaje de suscripción: $subscribeMsg');
+    _channel?.sink.add(jsonEncode(subscribeMsg));
+    _channel?.stream.listen(
+      (message) {
+        print('[WSO][CLIENTE] Mensaje recibido del WebSocket: $message');
+        try {
+          final data = jsonDecode(message);
+          if (data is Map && data.containsKey('event')) {
+            if (data['event'] == 'status.updated') {
+              print('[WSO][CLIENTE] Evento status.updated recibido: ${data['data']}');
+              _handleRestaurantStatusUpdate(data['data']);
+            } else if (data['event'] == 'pusher:ping') {
+              print('[WSO][CLIENTE] Recibido pusher:ping, enviando pusher:pong');
+              _channel?.sink.add(jsonEncode({'event': 'pusher:pong', 'data': {}}));
+            }
+          }
+        } catch (e) {
+          print('[WSO][CLIENTE] Error al procesar mensaje WebSocket: $e');
+        }
+      },
+      onError: (error) {
+        print('[WSO][CLIENTE] Error en la conexión WebSocket: $error');
+      },
+      onDone: () {
+        print('[WSO][CLIENTE] Conexión WebSocket cerrada');
+      },
+    );
+  }
+
+  void _handleRestaurantStatusUpdate(dynamic eventData) {
+    Map<String, dynamic>? parsed;
+    if (eventData is String) {
+      try {
+        parsed = jsonDecode(eventData);
+      } catch (e) {
+        print('[WSO][CLIENTE] Error al decodificar eventData: $e');
+        return;
+      }
+    } else if (eventData is Map<String, dynamic>) {
+      parsed = eventData;
+    }
+    if (parsed != null && parsed.containsKey('id') && parsed.containsKey('estado')) {
+      final id = parsed['id'];
+      final estado = parsed['estado'];
+      print('[WSO][CLIENTE] Actualizando marcador para restaurante_id=$id, estado=$estado');
+      actualizarMarcadorRestaurantePorId(id, estado);
+    } else {
+      print('[WSO][CLIENTE] eventData no contiene los campos necesarios: $parsed');
+    }
+  }
+
+  void actualizarMarcadorRestaurantePorId(dynamic id, dynamic nuevoEstado) {
+    print('[WSO][CLIENTE] actualizarMarcadorRestaurantePorId llamado para id=$id, estado=$nuevoEstado');
+    Marker? marcadorAnterior;
+    try {
+      marcadorAnterior = _markers.firstWhere(
+        (m) => m.markerId.value == id.toString(),
+      );
+    } catch (e) {
+      marcadorAnterior = null;
+    }
+    setState(() {
+      if (marcadorAnterior != null) {
+        print('[WSO][CLIENTE] Eliminando marcador anterior de id=$id');
+        _markers.remove(marcadorAnterior);
+        final nuevaPos = marcadorAnterior.position;
+        final nuevoIcono = nuevoEstado == 1
+            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+        Map<String, dynamic>? restauranteData;
+        try {
+          restauranteData = _restaurantesData.firstWhere(
+            (rest) => rest['id'].toString() == id.toString(),
+          );
+        } catch (e) {
+          print('[WSO][CLIENTE] No se encontraron datos para el restaurante id=$id');
+        }
+        final nuevoMarcador = Marker(
+          markerId: MarkerId(id.toString()),
+          position: nuevaPos,
+          icon: nuevoIcono,
+          onTap: () {
+            if (restauranteData != null) {
+              final imagenSafe = getRestauranteImageUrl(restauranteData['imagen']?.toString());
+              final infoWidget = RestaurantInfoWindow(
+                restaurantData: {
+                  ...restauranteData,
+                  'imagen': imagenSafe,
+                  'estado': nuevoEstado,
+                },
+                onMenuPressed: () {
+                  _customController.hideInfoWindow!();
+                  final int restaurantId = restauranteData?['restaurante_id'] is int
+                      ? restauranteData!['restaurante_id']
+                      : (restauranteData?['id'] is int
+                          ? restauranteData!['id']
+                          : int.tryParse(restauranteData?['restaurante_id']?.toString() ?? restauranteData?['id']?.toString() ?? '0') ?? 0);
+                  final String name = restauranteData?['nom_rest'] ?? restauranteData?['nombre_restaurante'] ?? '';
+                  final String phone = restauranteData?['celular']?.toString() ?? '';
+                  final String imageUrl = restauranteData?['imagen']?.toString() ?? '';
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MenuRestaurante(
+                        restaurantId: restaurantId,
+                        name: name,
+                        phone: phone,
+                        imageUrl: imageUrl,
+                      ),
+                    ),
+                  );
+                },
+              );
+              _customController.addInfoWindow!([infoWidget], [nuevaPos]);
+            }
+          },
+        );
+        _markers.add(nuevoMarcador);
+        print('[WSO][CLIENTE] Marcador actualizado en _markers para id=$id');
+      } else {
+        print('[WSO][CLIENTE] No se encontró marcador para id=$id');
+      }
+    });
   }
 
   Future<void> _applyMapStyle(bool isDark) async {
