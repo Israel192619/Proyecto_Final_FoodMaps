@@ -7,11 +7,11 @@ import 'dart:io';
 import 'package:web_socket_channel/web_socket_channel.dart'; // <-- Corrige el import eliminando el espacio extra
 
 // Importar las páginas necesarias
-import 'package:cases/screens/dueño/fragments/maps_due_page.dart' show MapsDuePage;
-import 'package:cases/screens/dueño/fragments/dueno_platos_page.dart';
-import 'package:cases/screens/dueño/fragments/dueno_bebidas_page.dart';
-import 'package:cases/screens/dueño/fragments/settings_dueno_page.dart';
-import 'package:cases/config/config.dart';
+import 'package:foodmaps/screens/dueño/fragments/maps_due_page.dart' show MapsDuePage;
+import 'package:foodmaps/screens/dueño/fragments/dueno_platos_page.dart';
+import 'package:foodmaps/screens/dueño/fragments/dueno_bebidas_page.dart';
+import 'package:foodmaps/screens/dueño/fragments/settings_dueno_page.dart';
+import 'package:foodmaps/config/config.dart';
 
 String getRestauranteImageUrl(String? imagen) {
   return AppConfig.getImageUrl(imagen);
@@ -388,7 +388,7 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     }
   }
 
-  // Metodo público para recargar datos del restaurante
+  // Método público para recargar datos del restaurante
   void recargarDatosRestaurante() {
     print('[VISTA MAPSDUE] Recargando datos del restaurante después de edición');
     _fetchRestaurantData();

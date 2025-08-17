@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:cases/constants/assets.dart';
+import 'package:foodmaps/constants/assets.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cases/config/config.dart';
+import 'package:foodmaps/config/config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

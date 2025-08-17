@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cases/config/config.dart';
+import 'package:foodmaps/config/config.dart';
 
 Future<void> loginAndNavigate(BuildContext context, String username, String password) async {
   final String apiUrl = AppConfig.getApiUrl(AppConfig.loginEndpoint);
@@ -123,5 +123,42 @@ Future<void> loginAndNavigate(BuildContext context, String username, String pass
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error de conexión: ${e.toString()}')),
     );
+  }
+}
+
+/// Obtiene la lista de restaurantes del dueño usando el token y el endpoint privado
+Future<List<dynamic>> getRestaurantesDelDueno(String token) async {
+  final String url = AppConfig.apiBaseUrl + "/restaurantes";
+  try {
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+    );
+    print('[GET RESTAURANTES DUEÑO] statusCode: \'${response.statusCode}\'');
+    print('[GET RESTAURANTES DUEÑO] body: ${response.body}');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // --- NUEVO: Extraer lista desde 'data' si existe ---
+      if (data is Map && data.containsKey('data')) {
+        if (data['data'] is List) {
+          return data['data'];
+        } else if (data['data'] is Map) {
+          return [data['data']];
+        }
+      }
+      // Compatibilidad con otros formatos
+      if (data is List) {
+        return data;
+      } else if (data is Map && data.containsKey('restaurantes')) {
+        return data['restaurantes'] is List ? data['restaurantes'] : [data['restaurantes']];
+      }
+    }
+    return [];
+  } catch (e) {
+    print('[GET RESTAURANTES DUEÑO] Error: $e');
+    return [];
   }
 }

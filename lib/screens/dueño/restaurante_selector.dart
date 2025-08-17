@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../config/config.dart'; // Agrega este import
+import '../../utils/auth_utils.dart'; // Importar el archivo auth_utils.dart correctamente
 
 String getRestauranteImageUrl(String? imagen) {
   if (imagen == null || imagen.isEmpty) return '';
@@ -21,11 +22,57 @@ class RestauranteSelectorScreen extends StatefulWidget {
 
 class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
   List _restaurantes = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _restaurantes = List.from(widget.restaurantes);
+    _fetchRestaurantes();
+  }
+
+  Future<void> _fetchRestaurantes() async {
+    setState(() { _loading = true; });
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    print('[SELECTOR] Token obtenido: $token');
+    if (token == null) {
+      setState(() { _loading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Token de autenticación no encontrado')),
+      );
+      return;
+    }
+    try {
+      final restaurantesList = await getRestaurantesDelDueno(token);
+      print('[SELECTOR] Restaurantes obtenidos del backend: $restaurantesList');
+      // NUEVO: Imprimir la respuesta cruda del backend
+      final responseRaw = await http.get(
+        Uri.parse(AppConfig.apiBaseUrl + "/restaurantes"),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+      );
+      print('[SELECTOR] Respuesta cruda del backend: ${responseRaw.body}');
+      setState(() {
+        _restaurantes = restaurantesList;
+        _loading = false;
+      });
+      await prefs.setString('restaurantes', jsonEncode(restaurantesList));
+      // Solo redirigir si la lista está realmente vacía y la petición fue exitosa
+      if (!_loading && _restaurantes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No tienes restaurantes registrados.')),
+        );
+        Navigator.pushReplacementNamed(context, '/new_restaurante');
+      }
+    } catch (e) {
+      setState(() { _loading = false; });
+      print('[SELECTOR] Error al obtener restaurantes: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al obtener restaurantes: $e')),
+      );
+    }
   }
 
   Future<void> _eliminarRestaurante(int restauranteId, String nombreRestaurante) async {
@@ -140,6 +187,16 @@ class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Selecciona un restaurante'),
+          backgroundColor: isDark ? Colors.black : Colors.red.shade700,
+          elevation: 2,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

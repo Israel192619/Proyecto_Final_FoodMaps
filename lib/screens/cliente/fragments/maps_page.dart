@@ -15,7 +15,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:url_launcher/url_launcher.dart'; // Añade este import
 import '../../../config/theme_provider.dart';
 import '../../../config/config.dart';
-import 'package:cases/constants/restaurant_info_window.dart';
+import 'package:foodmaps/constants/restaurant_info_window.dart';
 import '../../publica/Menu_Restaurante.dart'; // Agrega este import
 
 class MapsPage extends StatefulWidget {

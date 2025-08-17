@@ -9,10 +9,10 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import '../../../config/config.dart';
 import '../../../config/theme_provider.dart';
 import '../../cliente/fragments/maps_page.dart' show MapsUtils, MapsDesktopTable; // <-- Agrega MapsDesktopTable aquí
-import 'package:cases/constants/custom_info_window_controller.dart'; // Importa el controlador personalizado
-import 'package:google_map_custom_windows/google_map_custom_windows.dart'; // <-- Agrega este import
-import 'package:cases/constants/restaurant_info_window.dart'; // Reutiliza el mismo widget de info window
+import 'package:foodmaps/constants/custom_info_window_controller.dart'; // Importa el controlador personalizado
+import 'package:foodmaps/constants/restaurant_info_window.dart'; // Reutiliza el mismo widget de info window
 import '../../publica/Menu_Restaurante.dart'; // Agrega este import
+import 'package:google_map_custom_windows/google_map_custom_windows.dart';
 
 class MapsDuePage extends StatefulWidget {
   final int restauranteId;

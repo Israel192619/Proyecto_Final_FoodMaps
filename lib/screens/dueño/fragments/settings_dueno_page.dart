@@ -8,7 +8,6 @@ import '../../../config/theme_provider.dart';
 import '../../publica/new_restaurante.dart' show SeleccionarUbicacionMapaScreen;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../editar_restaurante.dart';
-import '../maps_due_activity.dart';
 
 class SettingsDuenoPage extends StatefulWidget {
   final int restauranteId;
@@ -229,75 +228,12 @@ class _SettingsDuenoPageState extends State<SettingsDuenoPage> {
       if (result == true) {
         // Si se editó con éxito, actualizar preferencias
         _cargarPreferencias();
-
-        // Notificar a la actividad principal para recargar los datos
-        _actualizarActividadPrincipal(context);
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo cargar la información del restaurante')),
       );
     }
-  }
-
-  // Método para actualizar la actividad principal
-  void _actualizarActividadPrincipal(BuildContext context) {
-    final scaffold = ScaffoldMessenger.of(context);
-
-    try {
-      // Buscar la instancia de MapsDueActivity en el árbol de widgets
-      final MapsDueActivity? ancestor = context.findAncestorWidgetOfExactType<MapsDueActivity>();
-
-      if (ancestor != null) {
-        print('[VISTA SETTINGS] Encontrada instancia de MapsDueActivity, accediendo a su estado global');
-
-        // Obtener el estado global usando el contexto actual
-        final state = context.findRootAncestorStateOfType<State<MapsDueActivity>>();
-
-        if (state != null) {
-          // Acceder al método público del state usando dynamic para bypass de tipo
-          (state as dynamic).recargarDatosRestaurante();
-          print('[VISTA SETTINGS] Datos recargados con éxito');
-
-          scaffold.showSnackBar(
-            const SnackBar(
-              content: Text('Información actualizada correctamente'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            )
-          );
-        } else {
-          print('[VISTA SETTINGS] No se encontró el estado de MapsDueActivity');
-          _mostrarSnackbarYReintentar(scaffold);
-        }
-      } else {
-        print('[VISTA SETTINGS] No se encontró la instancia de MapsDueActivity');
-        _mostrarSnackbarYReintentar(scaffold);
-      }
-    } catch (e) {
-      print('[VISTA SETTINGS] Error al actualizar actividad principal: $e');
-      _mostrarSnackbarYReintentar(scaffold);
-    }
-  }
-
-  void _mostrarSnackbarYReintentar(ScaffoldMessengerState scaffold) {
-    // Plan B: Actualizar usando la navegación
-    scaffold.showSnackBar(
-      const SnackBar(
-        content: Text('Actualizando información...'),
-        duration: Duration(seconds: 1),
-      )
-    );
-
-    // Esperar un momento y luego navegar de vuelta a la página principal
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MapsDueActivity(restauranteId: widget.restauranteId),
-        )
-      );
-    });
   }
 
   void _actualizarUbicacion(BuildContext context) async {
@@ -404,24 +340,16 @@ class _SettingsDuenoPageState extends State<SettingsDuenoPage> {
       );
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-
       // Guarda el modo oscuro antes de limpiar
       final mapTheme = prefs.getString('map_theme');
-
       // Borra restaurante seleccionado
       await prefs.remove('restaurante_id');
       await prefs.remove('restaurante_seleccionado');
-
       // Si no mantiene la sesión iniciada, limpiar credenciales
-      print('[VISTA SETTINGS] Cerrando sesión, mantener sesión: $_mantenerSesion');
       if (!_mantenerSesion) {
-        print('[VISTA SETTINGS] Eliminando credenciales guardadas');
         await prefs.remove('username');
         await prefs.remove('password');
-      } else {
-        print('[VISTA SETTINGS] Manteniendo credenciales guardadas');
       }
-
       // Llamada a la API para cerrar sesión
       if (token != null && token.isNotEmpty) {
         try {
@@ -437,13 +365,7 @@ class _SettingsDuenoPageState extends State<SettingsDuenoPage> {
           print('Error al llamar logout: $e');
         }
       }
-
-      // Siempre eliminar el token al cerrar sesión
       await prefs.remove('auth_token');
-
-      // Marcar como logout forzado
-      await prefs.setBool('forcedLogout', true);
-
       // Restaurar el modo oscuro después de limpiar
       if (mapTheme != null) {
         await prefs.setString('map_theme', mapTheme);
@@ -454,7 +376,6 @@ class _SettingsDuenoPageState extends State<SettingsDuenoPage> {
           Provider.of<ThemeProvider>(context, listen: false).setDarkMode(false);
         }
       }
-
       // Cerrar loader modal
       Navigator.of(context, rootNavigator: true).pop();
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);

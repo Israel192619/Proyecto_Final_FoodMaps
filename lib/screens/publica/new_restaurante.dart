@@ -10,9 +10,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:convert';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:cases/config/config.dart';
+import 'package:foodmaps/config/config.dart';
+import 'package:foodmaps/config/theme_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:cases/config/theme_provider.dart';
 
 
 class NewRestauranteScreen extends StatefulWidget {
