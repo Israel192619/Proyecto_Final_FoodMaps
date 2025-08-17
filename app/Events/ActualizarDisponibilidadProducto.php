@@ -40,11 +40,15 @@ class ActualizarDisponibilidadProducto implements ShouldBroadcastNow
     public function broadcastWith()
     {
         $data = [
-            'id' => $this->producto->id,
+            'producto_id' => $this->producto->id,
             'menu_id' => $this->producto->pivot->menu_id ?? null,
             'nombre_producto' => $this->producto->nombre_producto,
             'disponible' => $this->producto->pivot->disponible ?? null,
             'disponible_text' => ($this->producto->pivot->disponible ?? false) ? 'DISPONIBLE' : 'NO DISPONIBLE',
+            'descripcion' => $this->producto->pivot->descripcion ?? null,
+            'tipo' => $this->producto->pivot->tipo ?? null,
+            'precio' => $this->producto->pivot->precio ?? null,
+            'imagen' => $this->producto->pivot->imagen ?? null,
             'updated_at' => $this->producto->updated_at->toISOString(),
         ];
 
