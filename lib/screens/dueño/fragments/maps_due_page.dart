@@ -536,163 +536,159 @@ class _MapsDuePageState extends State<MapsDuePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.linux ||
-            defaultTargetPlatform == TargetPlatform.macOS);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double maxWidth = constraints.maxWidth < 500 ? constraints.maxWidth * 0.98 : 420;
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Consumer<ThemeProvider>(
+              builder: (context, themeProvider, _) {
+                if (_mapController != null &&
+                    (_lastIsDark != themeProvider.isDarkMode || !_mapStyleApplied)) {
+                  print('[MAP_STYLE] build() detecta cambio de tema o estilo no aplicado');
+                  _applyMapStyle(themeProvider.isDarkMode);
+                }
+                _lastIsDark = themeProvider.isDarkMode;
 
-    print('[MARCADOR] build() llamado');
-    print('[MAPS_DUE_PAGE] Plataforma detectada: ${defaultTargetPlatform.toString()}, isDesktop=$isDesktop, kIsWeb=$kIsWeb');
-    print('[MAPS_DUE_PAGE] _restaurantesData.length=${_restaurantesData.length}');
-
-    if (isDesktop) {
-      print('[MAPS_DUE_PAGE] Mostrando tabla de restaurantes en escritorio');
-      return _buildDesktopTable(context);
-    }
-
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, _) {
-        if (_mapController != null &&
-            (_lastIsDark != themeProvider.isDarkMode || !_mapStyleApplied)) {
-          print('[MAP_STYLE] build() detecta cambio de tema o estilo no aplicado');
-          _applyMapStyle(themeProvider.isDarkMode);
-        }
-        _lastIsDark = themeProvider.isDarkMode;
-
-        Set<Marker> markersToShow = {..._allMarkers};
-        if (_restauranteMarker != null) {
-          print('[MARCADOR] Agregando marcador principal al mapa');
-          markersToShow.add(_restauranteMarker!);
-        } else {
-          print('[MARCADOR] No hay marcador principal para agregar');
-        }
-        return SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Wrap(
-                          spacing: 10,
+                Set<Marker> markersToShow = {..._allMarkers};
+                if (_restauranteMarker != null) {
+                  print('[MARCADOR] Agregando marcador principal al mapa');
+                  markersToShow.add(_restauranteMarker!);
+                } else {
+                  print('[MARCADOR] No hay marcador principal para agregar');
+                }
+                return SafeArea(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        child: Row(
                           children: [
-                            ChoiceChip(
-                              label: Row(
-                                children: const [
-                                  Icon(Icons.all_inclusive, size: 18),
-                                  SizedBox(width: 6),
-                                  Text('Todos'),
-                                ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Wrap(
+                                  spacing: 10,
+                                  children: [
+                                    ChoiceChip(
+                                      label: Row(
+                                        children: const [
+                                          Icon(Icons.all_inclusive, size: 18),
+                                          SizedBox(width: 6),
+                                          Text('Todos'),
+                                        ],
+                                      ),
+                                      selected: _estadoFiltro == -1,
+                                      selectedColor: Colors.red.shade400,
+                                      backgroundColor: Colors.red.shade100,
+                                      labelStyle: TextStyle(
+                                        color: _estadoFiltro == -1 ? Colors.white : Colors.red.shade700,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      elevation: _estadoFiltro == -1 ? 6 : 2,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          _estadoFiltro = -1;
+                                          _actualizarMarcadores();
+                                        });
+                                      },
+                                    ),
+                                    ChoiceChip(
+                                      label: Row(
+                                        children: const [
+                                          Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                          SizedBox(width: 6),
+                                          Text('Abiertos'),
+                                        ],
+                                      ),
+                                      selected: _estadoFiltro == 1,
+                                      selectedColor: Colors.green.shade400,
+                                      backgroundColor: Colors.green.shade100,
+                                      labelStyle: TextStyle(
+                                        color: _estadoFiltro == 1 ? Colors.white : Colors.green.shade700,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      elevation: _estadoFiltro == 1 ? 6 : 2,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          _estadoFiltro = 1;
+                                          _actualizarMarcadores();
+                                        });
+                                      },
+                                    ),
+                                    ChoiceChip(
+                                      label: Row(
+                                        children: const [
+                                          Icon(Icons.cancel, color: Colors.red, size: 18),
+                                          SizedBox(width: 6),
+                                          Text('Cerrados'),
+                                        ],
+                                      ),
+                                      selected: _estadoFiltro == 0,
+                                      selectedColor: Colors.red.shade400,
+                                      backgroundColor: Colors.red.shade100,
+                                      labelStyle: TextStyle(
+                                        color: _estadoFiltro == 0 ? Colors.white : Colors.red.shade700,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      elevation: _estadoFiltro == 0 ? 6 : 2,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          _estadoFiltro = 0;
+                                          _actualizarMarcadores();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
-                              selected: _estadoFiltro == -1,
-                              selectedColor: Colors.red.shade400,
-                              backgroundColor: Colors.red.shade100,
-                              labelStyle: TextStyle(
-                                color: _estadoFiltro == -1 ? Colors.white : Colors.red.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              elevation: _estadoFiltro == -1 ? 6 : 2,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _estadoFiltro = -1;
-                                  _actualizarMarcadores();
-                                });
-                              },
-                            ),
-                            ChoiceChip(
-                              label: Row(
-                                children: const [
-                                  Icon(Icons.check_circle, color: Colors.green, size: 18),
-                                  SizedBox(width: 6),
-                                  Text('Abiertos'),
-                                ],
-                              ),
-                              selected: _estadoFiltro == 1,
-                              selectedColor: Colors.green.shade400,
-                              backgroundColor: Colors.green.shade100,
-                              labelStyle: TextStyle(
-                                color: _estadoFiltro == 1 ? Colors.white : Colors.green.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              elevation: _estadoFiltro == 1 ? 6 : 2,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _estadoFiltro = 1;
-                                  _actualizarMarcadores();
-                                });
-                              },
-                            ),
-                            ChoiceChip(
-                              label: Row(
-                                children: const [
-                                  Icon(Icons.cancel, color: Colors.red, size: 18),
-                                  SizedBox(width: 6),
-                                  Text('Cerrados'),
-                                ],
-                              ),
-                              selected: _estadoFiltro == 0,
-                              selectedColor: Colors.red.shade400,
-                              backgroundColor: Colors.red.shade100,
-                              labelStyle: TextStyle(
-                                color: _estadoFiltro == 0 ? Colors.white : Colors.red.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              elevation: _estadoFiltro == 0 ? 6 : 2,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _estadoFiltro = 0;
-                                  _actualizarMarcadores();
-                                });
-                              },
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Stack(
-                  children: [
-                    GoogleMap(
-                      key: _mapKey,
-                      onMapCreated: (controller) async {
-                        print('[MAP_STYLE] onMapCreated llamado');
-                        _mapController = controller;
-                        _mapStyleApplied = false;
-                        await _applyMapStyle(themeProvider.isDarkMode);
-                        if (_customController != null) {
-                          _customController!.initialize(controller);
-                        }
-                        _mapController?.moveCamera(
-                          CameraUpdate.newCameraPosition(
-                            CameraPosition(target: _defaultPosition, zoom: 15),
-                          ),
-                        );
-                      },
-                      initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
-                      markers: markersToShow,
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: false,
-                      onTap: (_) => _customController?.hideInfoWindow(),
-                      onCameraMove: (_) => _customController?.customController.onCameraMove!(),
-                    ),
-                    if (_customController != null)
-                      CustomMapInfoWindow(
-                        controller: _customController!.customController,
-                        offset: const Offset(0, 30),
-                        height: 170,
-                        width: 180,
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            GoogleMap(
+                              key: _mapKey,
+                              onMapCreated: (controller) async {
+                                print('[MAP_STYLE] onMapCreated llamado');
+                                _mapController = controller;
+                                _mapStyleApplied = false;
+                                await _applyMapStyle(themeProvider.isDarkMode);
+                                if (_customController != null) {
+                                  _customController!.initialize(controller);
+                                }
+                                _mapController?.moveCamera(
+                                  CameraUpdate.newCameraPosition(
+                                    CameraPosition(target: _defaultPosition, zoom: 15),
+                                  ),
+                                );
+                              },
+                              initialCameraPosition: CameraPosition(target: _defaultPosition, zoom: 15),
+                              markers: markersToShow,
+                              myLocationEnabled: true,
+                              myLocationButtonEnabled: false,
+                              onTap: (_) => _customController?.hideInfoWindow(),
+                              onCameraMove: (_) => _customController?.customController.onCameraMove!(),
+                            ),
+                            if (_customController != null)
+                              CustomMapInfoWindow(
+                                controller: _customController!.customController,
+                                offset: const Offset(0, 30),
+                                height: 170,
+                                width: 180,
+                              ),
+                          ],
+                        ),
                       ),
-                  ],
-                ),
-              ),
-            ],
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         );
       },

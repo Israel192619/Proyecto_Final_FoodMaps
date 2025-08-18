@@ -352,13 +352,23 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
-            : IndexedStack(
-                index: _selectedIndex,
-                children: [
-                  // +++ Pasa el stream a las páginas
-                  PlatosRest(productos: platos, updatesStream: _productUpdates.stream),
-                  BebidasRest(productos: bebidas, updatesStream: _productUpdates.stream),
-                ],
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  double maxWidth = constraints.maxWidth < 500 ? constraints.maxWidth * 0.98 : 420;
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      child: IndexedStack(
+                        index: _selectedIndex,
+                        children: [
+                          // +++ Pasa el stream a las páginas
+                          PlatosRest(productos: platos, updatesStream: _productUpdates.stream),
+                          BebidasRest(productos: bebidas, updatesStream: _productUpdates.stream),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,

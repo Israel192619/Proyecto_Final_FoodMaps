@@ -171,6 +171,20 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double maxWidth = constraints.maxWidth < 500 ? constraints.maxWidth * 0.98 : 420;
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: _buildContent(context),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Detectar si estamos en escritorio o web
@@ -307,7 +321,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? Colors.grey[600]! : Colors.grey[300]!, width: 1),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4, offset: const Offset(0, 2))],
+                  boxShadow: [BoxShadow(color: Colors.black.withAlpha((0.15 * 255).toInt()), blurRadius: 4, offset: const Offset(0, 2))],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(7),
@@ -342,7 +356,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
                     : Container(
                         margin: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.grey.shade800.withOpacity(0.8) : Colors.white.withOpacity(0.8),
+                          color: isDark ? Colors.grey.shade800.withAlpha((0.8 * 255).toInt()) : Colors.white.withAlpha((0.8 * 255).toInt()),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -399,7 +413,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
               margin: const EdgeInsets.only(top: 2, bottom: 3),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[800]!.withOpacity(0.5) : Colors.grey[100],
+                color: isDark ? Colors.grey[800]!.withAlpha((0.5 * 255).toInt()) : Colors.grey[100],
                 borderRadius: BorderRadius.circular(6),
               ),
               child: SingleChildScrollView(
@@ -426,7 +440,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8), // Reducido
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.8),
+                color: Colors.red.withAlpha((0.8 * 255).toInt()),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -475,7 +489,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withAlpha((0.15 * 255).toInt()),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../config/config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 
 class EditarProductoPage extends StatefulWidget {
   final Map<String, dynamic> producto;
@@ -196,13 +197,41 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
          defaultTargetPlatform == TargetPlatform.macOS);
 
     final picker = ImagePicker();
+    const maxImageBytes = 2048 * 1024; // 2MB
 
-    Future<void> _setBytes(Uint8List bytes, String nameOrPath) async {
-      if (bytes.length > _maxImageBytes) {
-        final sizeMb = (bytes.length / (1024 * 1024)).toStringAsFixed(2);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('La imagen seleccionada pesa $sizeMb MB. Máximo permitido 2MB.')),
-        );
+    Future<void> setImageIfValid(Uint8List bytes, String nameOrPath) async {
+      if (bytes.length > maxImageBytes) {
+        img.Image? original = img.decodeImage(bytes);
+        if (original == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo procesar la imagen seleccionada.')),
+          );
+          return;
+        }
+        int targetWidth = original.width > 1024 ? 1024 : original.width;
+        int targetHeight = (original.height * targetWidth / original.width).round();
+        img.Image resized = img.copyResize(original, width: targetWidth, height: targetHeight);
+        int quality = 85;
+        Uint8List? resultBytes;
+        for (; quality >= 40; quality -= 15) {
+          resultBytes = Uint8List.fromList(img.encodeJpg(resized, quality: quality));
+          if (resultBytes.length <= maxImageBytes) break;
+        }
+        if (resultBytes != null && resultBytes.length <= maxImageBytes) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('La imagen fue redimensionada automáticamente para cumplir el límite de 2MB.')),
+          );
+          setState(() {
+            _imageBytes = resultBytes;
+            _imagePath = nameOrPath;
+            _editarImagen = true;
+          });
+          print('[VISTA][EDITAR_PRODUCTO] Imagen redimensionada (${resultBytes.length} bytes)');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo reducir la imagen por debajo de 2MB. Selecciona una imagen más pequeña.')),
+          );
+        }
         return;
       }
       setState(() {
@@ -217,13 +246,13 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
-        await _setBytes(bytes, picked.name);
+        await setImageIfValid(bytes, picked.name);
       }
     } else if (isDesktop) {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
-        await _setBytes(bytes, picked.path);
+        await setImageIfValid(bytes, picked.path);
       }
     } else {
       final source = await showDialog<ImageSource>(
@@ -251,7 +280,7 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
         final picked = await picker.pickImage(source: source);
         if (picked != null) {
           final bytes = await picked.readAsBytes();
-          await _setBytes(bytes, picked.path);
+          await setImageIfValid(bytes, picked.path);
         }
       }
     }
@@ -714,110 +743,120 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
           backgroundColor: isDark ? Colors.black : Colors.red.shade700,
           elevation: 4,
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            double maxWidth = constraints.maxWidth < 500 ? constraints.maxWidth * 0.98 : 420;
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
                 child: Column(
                   children: [
-                    Text(
-                      'Toca cualquier parte del producto para editarla',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildEditableCard(),
-                    if (hasChanges) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.shade200),
-                        ),
-                        child: Row(
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
                           children: [
-                            Icon(Icons.info, color: Colors.orange.shade700),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Tienes cambios pendientes. Presiona "Guardar cambios" para aplicarlos.',
-                                style: TextStyle(
-                                  color: Colors.orange.shade700,
-                                  fontWeight: FontWeight.w500,
+                            Text(
+                              'Toca cualquier parte del producto para editarla',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildEditableCard(),
+                            if (hasChanges) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.orange.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info, color: Colors.orange.shade700),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Tienes cambios pendientes. Presiona "Guardar cambios" para aplicarlos.',
+                                        style: TextStyle(
+                                          color: Colors.orange.shade700,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Descartar cambios'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.grey[600],
+                                        side: BorderSide(color: Colors.grey[400]!),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _nombreController.text = widget.producto['nombre_producto'] ?? '';
+                                          _precioController.text = widget.producto['precio']?.toString() ?? '';
+                                          _descripcionController.text = widget.producto['descripcion'] ?? '';
+                                          _disponible = widget.producto['disponible'] == 1;
+                                          _editarNombre = false;
+                                          _editarPrecio = false;
+                                          _editarDescripcion = false;
+                                          _editarDisponibilidad = false;
+                                          _editarImagen = false;
+                                          _imageBytes = null;
+                                          _imagePath = null;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      icon: _isSaving ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                                        ),
+                                      ) : const Icon(Icons.save),
+                                      label: Text(_isSaving ? 'Guardando...' : 'Guardar cambios'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 6,
+                                      ),
+                                      onPressed: _isSaving ? null : _guardarCambios,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Descartar cambios'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.grey[600],
-                                side: BorderSide(color: Colors.grey[400]!),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _nombreController.text = widget.producto['nombre_producto'] ?? '';
-                                  _precioController.text = widget.producto['precio']?.toString() ?? '';
-                                  _descripcionController.text = widget.producto['descripcion'] ?? '';
-                                  _disponible = widget.producto['disponible'] == 1;
-                                  _editarNombre = false;
-                                  _editarPrecio = false;
-                                  _editarDescripcion = false;
-                                  _editarDisponibilidad = false;
-                                  _editarImagen = false;
-                                  _imageBytes = null;
-                                  _imagePath = null;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: _isSaving ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                                ),
-                              ) : const Icon(Icons.save),
-                              label: Text(_isSaving ? 'Guardando...' : 'Guardar cambios'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 6,
-                              ),
-                              onPressed: _isSaving ? null : _guardarCambios,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

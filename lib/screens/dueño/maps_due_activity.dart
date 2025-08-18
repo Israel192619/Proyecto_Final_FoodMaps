@@ -472,9 +472,19 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
             _buildStatusSwitch(),
           ],
         ),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _pages,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            double maxWidth = constraints.maxWidth < 500 ? constraints.maxWidth * 0.98 : 420;
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: _pages,
+                ),
+              ),
+            );
+          },
         ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,

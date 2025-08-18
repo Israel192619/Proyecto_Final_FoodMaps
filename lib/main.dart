@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'publica/new_restaurante.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
-import 'cliente/maps_cli_activity.dart';
-import 'dueño/maps_due_activity.dart';
+import 'screens/publica/new_restaurante.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/cliente/maps_cli_activity.dart';
+import 'screens/dueño/maps_due_activity.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
-import '../config/theme_provider.dart';
-import '../config/app_themes.dart';
-import 'dueño/restaurante_selector.dart';
+import 'config/theme_provider.dart';
+import 'config/app_themes.dart';
+import 'screens/dueño/restaurante_selector.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +29,7 @@ class MyApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
         return MaterialApp(
+          title: 'foodmaps',
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: themeProvider.themeMode,
@@ -117,8 +118,24 @@ class AuthWrapper extends StatelessWidget {
       future: _getAuthState(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          // Si el FutureBuilder no tiene datos, muestra un loader
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          // Loader personalizado con logo
+          return const Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image(
+                    image: AssetImage('assets/icons/iconFoodMaps.png'),
+                    width: 120,
+                    height: 120,
+                  ),
+                  SizedBox(height: 32),
+                  CircularProgressIndicator(),
+                ],
+              ),
+            ),
+          );
         }
         final auth = snapshot.data!;
         final token = auth['token'];

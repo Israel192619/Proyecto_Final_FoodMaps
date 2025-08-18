@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../config/config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 
 class AgregarProductoPage extends StatefulWidget {
   final int restauranteId;
@@ -64,23 +65,58 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
 
     final picker = ImagePicker();
 
+    Future<void> setImageIfValid(Uint8List bytes, String nameOrPath) async {
+      const maxImageBytes = 2048 * 1024; // 2MB
+      if (bytes.length > maxImageBytes) {
+        // Redimensionar y recomprimir
+        img.Image? original = img.decodeImage(bytes);
+        if (original == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo procesar la imagen seleccionada.')),
+          );
+          return;
+        }
+        int targetWidth = original.width > 1024 ? 1024 : original.width;
+        int targetHeight = (original.height * targetWidth / original.width).round();
+        img.Image resized = img.copyResize(original, width: targetWidth, height: targetHeight);
+        int quality = 85;
+        Uint8List? resultBytes;
+        for (; quality >= 40; quality -= 15) {
+          resultBytes = Uint8List.fromList(img.encodeJpg(resized, quality: quality));
+          if (resultBytes.length <= maxImageBytes) break;
+        }
+        if (resultBytes != null && resultBytes.length <= maxImageBytes) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('La imagen fue redimensionada automáticamente para cumplir el límite de 2MB.')),
+          );
+          setState(() {
+            _imageBytes = resultBytes;
+            _imagePath = nameOrPath;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo reducir la imagen por debajo de 2MB. Selecciona una imagen más pequeña.')),
+          );
+        }
+        return;
+      }
+      setState(() {
+        _imageBytes = bytes;
+        _imagePath = nameOrPath;
+      });
+    }
+
     if (kIsWeb) {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
-        setState(() {
-          _imageBytes = bytes;
-          _imagePath = picked.name;
-        });
+        await setImageIfValid(bytes, picked.name);
       }
     } else if (isDesktop) {
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
-        setState(() {
-          _imageBytes = bytes;
-          _imagePath = picked.path;
-        });
+        await setImageIfValid(bytes, picked.path);
       }
     } else {
       // Móvil: mostrar diálogo para elegir cámara o galería
@@ -109,10 +145,7 @@ class _AgregarProductoPageState extends State<AgregarProductoPage> {
         final picked = await picker.pickImage(source: source);
         if (picked != null) {
           final bytes = await picked.readAsBytes();
-          setState(() {
-            _imageBytes = bytes;
-            _imagePath = picked.path;
-          });
+          await setImageIfValid(bytes, picked.path);
         }
       }
     }
