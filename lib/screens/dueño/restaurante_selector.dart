@@ -38,7 +38,10 @@ class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
     if (token == null) {
       setState(() { _loading = false; });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Token de autenticación no encontrado')),
+        const SnackBar(
+          content: Text('Token de autenticación no encontrado. Por favor inicia sesión nuevamente.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -62,7 +65,10 @@ class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
       // Solo redirigir si la lista está realmente vacía y la petición fue exitosa
       if (!_loading && _restaurantes.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No tienes restaurantes registrados.')),
+          const SnackBar(
+            content: Text('No tienes restaurantes registrados.'),
+            backgroundColor: Colors.red,
+          ),
         );
         Navigator.pushReplacementNamed(context, '/new_restaurante');
       }
@@ -70,7 +76,10 @@ class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
       setState(() { _loading = false; });
       print('[SELECTOR] Error al obtener restaurantes: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al obtener restaurantes: $e')),
+        SnackBar(
+          content: Text('No se pudo obtener la lista de restaurantes. Intenta nuevamente.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -162,7 +171,7 @@ class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al eliminar restaurante: ${response.statusCode}'),
+              content: Text('No se pudo eliminar el restaurante. Intenta nuevamente.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -176,7 +185,7 @@ class _RestauranteSelectorScreenState extends State<RestauranteSelectorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error de conexión al eliminar restaurante'),
+            content: Text('Error de conexión al eliminar restaurante.'),
             backgroundColor: Colors.red,
           ),
         );

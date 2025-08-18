@@ -148,6 +148,12 @@ class _LoginScreenState extends State<LoginScreen> {
               if (savedRestId != null && restaurantesList.any((r) => r['id'] == savedRestId)) {
                 final selectedRest = restaurantesList.firstWhere((r) => r['id'] == savedRestId);
                 await prefs.setString('restaurante_seleccionado', jsonEncode(selectedRest));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Inicio de sesión exitoso'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/dueno_home',
@@ -155,6 +161,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   arguments: selectedRest,
                 );
               } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Inicio de sesión exitoso'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/restaurante_selector',
@@ -169,6 +181,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (selected != null && selected is Map && selected['id'] != null) {
                   await prefs.setInt('restaurante_id', selected['id']);
                   await prefs.setString('restaurante_seleccionado', jsonEncode(selected));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Restaurante seleccionado correctamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                   Navigator.pushNamedAndRemoveUntil(
                     context,
                     '/dueno_home',
@@ -181,6 +199,12 @@ class _LoginScreenState extends State<LoginScreen> {
             } else if (restaurantesList.length == 1) {
               await prefs.setInt('restaurante_id', restaurantesList[0]['id']);
               await prefs.setString('restaurante_seleccionado', jsonEncode(restaurantesList[0]));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Inicio de sesión exitoso'),
+                  backgroundColor: Colors.green,
+                ),
+              );
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/dueno_home',
@@ -196,12 +220,24 @@ class _LoginScreenState extends State<LoginScreen> {
         switch (response.statusCode) {
           case 200: // Cliente
             await prefs.setBool('hasRestaurant', true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Inicio de sesión exitoso'),
+                backgroundColor: Colors.green,
+              ),
+            );
             print('[VISTA LOGIN] [REDIR] Redirigiendo a /mapsCliActivity');
             Navigator.pushNamedAndRemoveUntil(context, '/mapsCliActivity', (route) => false);
             break;
 
           case 201: // Dueño sin restaurante
             await prefs.setBool('hasRestaurant', false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Inicio de sesión exitoso'),
+                backgroundColor: Colors.green,
+              ),
+            );
             print('[VISTA LOGIN] [REDIR] Redirigiendo a /new_restaurante');
             Navigator.pushNamedAndRemoveUntil(context, '/new_restaurante', (route) => false);
             break;
@@ -211,6 +247,12 @@ class _LoginScreenState extends State<LoginScreen> {
             await prefs.setBool('hasRestaurant', true);
             await prefs.setString('restaurante', jsonEncode(restaurante));
             await prefs.setInt('restaurante_id', restaurante['id']);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Inicio de sesión exitoso'),
+                backgroundColor: Colors.green,
+              ),
+            );
             print('[VISTA LOGIN] [REDIR] Redirigiendo a /dueno_home con restaurante: $restaurante');
             Navigator.pushNamedAndRemoveUntil(
               context,
@@ -223,27 +265,42 @@ class _LoginScreenState extends State<LoginScreen> {
           default:
             print('[VISTA LOGIN] [REDIR] Respuesta inesperada del servidor');
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Respuesta inesperada del servidor')),
+              const SnackBar(
+                content: Text('Ocurrió un problema inesperado. Intenta nuevamente.'),
+                backgroundColor: Colors.red,
+              ),
             );
         }
       }
       else if (response.statusCode == 401) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Credenciales inválidas')),
+          const SnackBar(
+            content: Text('Credenciales inválidas. Verifica tus datos.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error del servidor: ${response.statusCode}')),
+          SnackBar(
+            content: Text('No se pudo conectar con el servidor. Intenta más tarde.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } on TimeoutException {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tiempo de espera agotado')),
+        const SnackBar(
+          content: Text('Tiempo de espera agotado. Verifica tu conexión.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error de conexión: ${e.toString()}')),
+        const SnackBar(
+          content: Text('Error de conexión. Revisa tu internet.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {

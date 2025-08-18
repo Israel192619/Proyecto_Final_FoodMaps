@@ -397,7 +397,10 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
     final phone = widget.phone.replaceAll(RegExp(r'\D'), '');
     if (phone.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Número de WhatsApp inválido")),
+        const SnackBar(
+          content: Text("Número de WhatsApp inválido"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -409,12 +412,18 @@ class _MenuRestauranteState extends State<MenuRestaurante> {
       );
       if (!launched) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No se pudo abrir WhatsApp. Verifica que esté instalado.")),
+          const SnackBar(
+            content: Text("No se pudo abrir WhatsApp"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir WhatsApp. Verifica que esté instalado.")),
+        const SnackBar(
+          content: Text("No se pudo abrir WhatsApp"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

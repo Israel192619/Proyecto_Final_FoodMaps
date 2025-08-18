@@ -613,7 +613,10 @@ class MapsDesktopTable extends StatelessWidget {
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir Google Maps')),
+          const SnackBar(
+            content: Text('No se pudo abrir Google Maps'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

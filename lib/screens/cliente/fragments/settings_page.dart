@@ -75,7 +75,10 @@ class SettingsPage extends StatelessWidget {
       // Cerrar loader modal
       Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sesión cerrada correctamente')),
+        const SnackBar(
+          content: Text('Sesión cerrada correctamente'),
+          backgroundColor: Colors.green,
+        ),
       );
       // Redirige al login y limpia completamente el stack de navegación
       Navigator.pushNamedAndRemoveUntil(

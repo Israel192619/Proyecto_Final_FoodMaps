@@ -341,12 +341,24 @@ class _EditarRestauranteScreenState extends State<EditarRestauranteScreen> {
           }
         }
 
+        // Limpiar caché de imágenes para forzar recarga
+        imageCache.clear();
+        imageCache.clearLiveImages();
+
         _mostrarExito('Restaurante actualizado correctamente');
 
-        // Esperar un poco para que se vea el mensaje
+        // Esperamos para que se muestre el mensaje de éxito
         await Future.delayed(const Duration(seconds: 1));
+
         if (mounted) {
-          Navigator.pop(context, true); // Volver a la pantalla anterior con resultado positivo
+          // IMPORTANTE: En lugar de usar pop, navegamos directamente a la pantalla principal
+          // Esto evita problemas de navegación y de estado inconsistente
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/dueno_home',
+            (route) => false,
+            arguments: jsonDecode(await prefs.getString('restaurante_seleccionado') ?? '{}')
+          );
         }
       } catch (e) {
         print('[VISTA EDITAR_REST] Error al procesar la respuesta: $e');

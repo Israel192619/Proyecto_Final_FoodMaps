@@ -253,6 +253,7 @@ class _BebidasDuenoPageState extends State<BebidasDuenoPage> {
         icon: const Icon(Icons.add),
         label: const Text('Agregar bebida'),
         backgroundColor: Colors.red,
+        heroTag: 'btn_agregar_bebida', // Agregar etiqueta hero única
       ),
     );
   }

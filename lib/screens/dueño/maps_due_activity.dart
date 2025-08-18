@@ -289,74 +289,48 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
 
   void _connectWebSocketChannel() {
     // Cierra el canal anterior si existe antes de crear uno nuevo
-    if (_channel != null) {
-      print('[WSO] Cerrando canal WebSocket anterior antes de reconectar');
-      _channel?.sink.close();
-      _channel = null;
-    }
-
-    final wsUrl = AppConfig.getWebSocketUrl();
-    print('[WSO][RUTA] WebSocket: $wsUrl');
-    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-
-    final subscribeMsg = {
-      "event": "pusher:subscribe",
-      "data": {
-        "channel": "restaurantes"
+    try {
+      if (_channel != null) {
+        print('[WSO] Cerrando canal WebSocket anterior antes de reconectar');
+        _channel?.sink.close();
+        _channel = null;
       }
-    };
-    print('[WSO] Enviando mensaje de suscripción: $subscribeMsg');
-    _channel?.sink.add(jsonEncode(subscribeMsg));
 
-    bool suscripcionExitosa = false;
+      final wsUrl = AppConfig.getWebSocketUrl();
+      print('[WSO][RUTA] WebSocket: $wsUrl');
+      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
-    _channel?.stream.listen(
-          (message) {
-        print('[WSO] Mensaje recibido del WebSocket: $message');
-        try {
-          final data = jsonDecode(message);
-          print('[WSO] Decodificado: $data');
-          if (data is Map && data.containsKey('event')) {
-            print('[WSO] Evento recibido: ${data['event']}');
-            if (data['event'] == 'status.updated') {
-              print('[WSO] Evento status.updated recibido: ${data['data']}');
-              _handleRestaurantStatusUpdate(data['data']);
-            } else if (data['event'] == 'pusher:ping') {
-              print('[WSO] Recibido pusher:ping, enviando pusher:pong');
-              _channel?.sink.add(jsonEncode({'event': 'pusher:pong', 'data': {}}));
-            } else if (data['event'] == 'pusher_internal:subscription_succeeded') {
-              print('[WSO] Suscripción exitosa al canal: ${data['channel']}');
-              suscripcionExitosa = true;
-            } else if (data['event'] == 'pusher_internal:subscription_error') {
-              print('[WSO] Error al suscribirse al canal: ${data['channel']}');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error al suscribirse al canal WebSocket: ${data['channel']}')),
-              );
-            } else {
-              print('[WSO] Evento no relevante para estado: ${data['event']}');
-            }
-          } else {
-            print('[WSO] Mensaje recibido sin campo "event": $data');
+      final subscribeMsg = {
+        "event": "pusher:subscribe",
+        "data": {
+          "channel": "restaurantes"
+        }
+      };
+      print('[WSO] Enviando mensaje de suscripción: $subscribeMsg');
+      _channel?.sink.add(jsonEncode(subscribeMsg));
+
+      bool suscripcionExitosa = false;
+
+      _channel?.stream.listen(
+        (message) {
+          print('[WSO] Mensaje recibido del WebSocket: $message');
+          try {
+            // Resto del código existente
+            _handleWebSocketMessage(message);
+          } catch (e) {
+            print('[WSO] Error al procesar mensaje WebSocket: $e');
           }
-        } catch (e) {
-          print('[WSO] Error al procesar mensaje WebSocket: $e');
-        }
-      },
-      onError: (error) {
-        print('[WSO] Error en la conexión WebSocket: $error');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error en la conexión WebSocket: $error')),
-        );
-      },
-      onDone: () {
-        print('[WSO] Conexión WebSocket cerrada');
-        if (!suscripcionExitosa) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('La suscripción al canal WebSocket no fue exitosa')),
-          );
-        }
-      },
-    );
+        },
+        onError: (error) {
+          print('[WSO] Error en la conexión WebSocket: $error');
+        },
+        onDone: () {
+          print('[WSO] Conexión WebSocket cerrada');
+        },
+      );
+    } catch (e) {
+      print('[WSO] Error al configurar WebSocket: $e');
+    }
   }
 
   @override
@@ -371,6 +345,7 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
     print('[WSO] didChangeAppLifecycleState: $state');
     if (state == AppLifecycleState.resumed) {
       print('[WSO] App reanudada, reconectando WebSocket y refrescando datos');
+      setState(() => _isLoadingRestauranteStatus = true);
       _connectWebSocketChannel();
       _fetchRestaurantData();
       // Refresca los restaurantes en el mapa (actualiza todos los marcadores)
@@ -391,7 +366,27 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
   // Método público para recargar datos del restaurante
   void recargarDatosRestaurante() {
     print('[VISTA MAPSDUE] Recargando datos del restaurante después de edición');
+
+    // Forzar recarga de datos del restaurante (incluida la imagen del banner)
+    setState(() {
+      // Limpiar imagen actual para evitar cache
+      _imagenRestaurante = '';
+      _isLoadingRestauranteStatus = true; // Mostrar indicador de carga
+    });
+
+    // Asegurarse que tengamos una conexión WebSocket activa
+    _connectWebSocketChannel();
+
+    // Cargar datos del restaurante
     _fetchRestaurantData();
+
+    // También refresca el mapa si estamos en la página del mapa
+    if (_mapsDuePageKey.currentState != null) {
+      final dynamic state = _mapsDuePageKey.currentState;
+      if (state != null && state._fetchLocationsFromApi != null) {
+        state._fetchLocationsFromApi();
+      }
+    }
   }
 
   @override
@@ -472,19 +467,9 @@ class _VistaDuenoState extends State<MapsDueActivity> with WidgetsBindingObserve
             _buildStatusSwitch(),
           ],
         ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            double maxWidth = constraints.maxWidth < 500 ? constraints.maxWidth * 0.98 : 420;
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: IndexedStack(
-                  index: _currentIndex,
-                  children: _pages,
-                ),
-              ),
-            );
-          },
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
         ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,

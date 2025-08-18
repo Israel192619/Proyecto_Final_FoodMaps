@@ -67,7 +67,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
           final data = jsonDecode(response.body);
           print('[VISTA REGISTRO] Registro exitoso, data: $data');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Registro exitoso')),
+            SnackBar(
+              content: Text('Registro exitoso'),
+              backgroundColor: Colors.green,
+            ),
           );
           // Guardar credenciales en SharedPreferences
           final prefs = await SharedPreferences.getInstance();
@@ -82,22 +85,28 @@ class _RegistroScreenState extends State<RegistroScreen> {
             _pass1Controller.text.trim(),
           );
         } else {
-          String msg = 'Error: ${response.statusCode}';
+          String msg = 'Ocurrió un error en el registro. Intenta nuevamente.';
           try {
             final data = jsonDecode(response.body);
-            print('[VISTA REGISTRO] Error en registro, data: $data');
             if (data is Map && data['message'] != null) {
-              msg = data['message'].toString();
+              // Puedes personalizar el mensaje si el backend lo provee
+              msg = 'Error: ' + data['message'].toString();
             }
           } catch (_) {}
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(msg)),
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       } catch (e) {
         print('[VISTA REGISTRO] Error de conexión en registro: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión')),
+          SnackBar(
+            content: Text('Error de conexión. Revisa tu internet.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
 
@@ -176,7 +185,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
             if (mounted) {
               print('[VISTA REGISTRO] [REDIR] Respuesta inesperada del servidor en login');
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Respuesta inesperada del servidor')),
+                SnackBar(
+                  content: Text('Ocurrió un problema inesperado. Intenta nuevamente.'),
+                  backgroundColor: Colors.red,
+                ),
               );
             }
         }
@@ -184,14 +196,20 @@ class _RegistroScreenState extends State<RegistroScreen> {
         print('[VISTA REGISTRO] Credenciales inválidas en login');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Credenciales inválidas')),
+            SnackBar(
+              content: Text('Credenciales inválidas. Verifica tus datos.'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       } else {
         print('[VISTA REGISTRO] Error del servidor en login: ${response.statusCode}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error del servidor: ${response.statusCode}')),
+            SnackBar(
+              content: Text('No se pudo conectar con el servidor. Intenta más tarde.'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -199,7 +217,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
       print('[VISTA REGISTRO] Error de conexión en login: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error de conexión. Revisa tu internet.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

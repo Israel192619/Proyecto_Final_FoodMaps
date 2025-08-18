@@ -254,6 +254,7 @@ class _PlatosDuenoPageState extends State<PlatosDuenoPage> {
         icon: const Icon(Icons.add),
         label: const Text('Agregar plato'),
         backgroundColor: Colors.red,
+        heroTag: 'btn_agregar_plato', // Agregar etiqueta hero única
       ),
     );
   }

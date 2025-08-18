@@ -215,19 +215,26 @@ class _SettingsDuenoPageState extends State<SettingsDuenoPage> {
     if (restauranteSeleccionadoJson != null) {
       final restauranteData = jsonDecode(restauranteSeleccionadoJson);
 
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EditarRestauranteScreen(
-            restauranteId: restauranteId,
-            restauranteData: restauranteData,
+      try {
+        // Al editar información, no esperamos un resultado ya que la pantalla
+        // de edición navegará directamente a la pantalla principal si tiene éxito
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditarRestauranteScreen(
+              restauranteId: restauranteId,
+              restauranteData: restauranteData,
+            ),
           ),
-        ),
-      );
+        );
 
-      if (result == true) {
-        // Si se editó con éxito, actualizar preferencias
-        _cargarPreferencias();
+        // Si volvemos aquí, significa que el usuario presionó "Cancelar"
+        // o navegó hacia atrás sin guardar cambios
+      } catch (e) {
+        print('[VISTA SETTINGS] Error al navegar a edición: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al abrir la pantalla de edición')),
+        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

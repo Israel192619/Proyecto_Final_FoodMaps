@@ -104,24 +104,33 @@ Future<void> loginAndNavigate(BuildContext context, String username, String pass
         default:
           print('[AUTHWRAPPER] Respuesta inesperada del servidor en login');
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Respuesta inesperada del servidor')),
+            const SnackBar(
+              content: Text('Ocurrió un problema inesperado. Intenta nuevamente.'),
+              backgroundColor: Colors.red,
+            ),
           );
       }
     } else if (response.statusCode == 401) {
-      print('[AUTHWRAPPER] Credenciales inválidas en login');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Credenciales inválidas')),
+        const SnackBar(
+          content: Text('Credenciales inválidas. Verifica tus datos.'),
+          backgroundColor: Colors.red,
+        ),
       );
     } else {
-      print('[AUTHWRAPPER] Error del servidor en login: ${response.statusCode}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error del servidor: ${response.statusCode}')),
+        const SnackBar(
+          content: Text('No se pudo conectar con el servidor. Intenta más tarde.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   } catch (e) {
-    print('[AUTHWRAPPER] Error de conexión en login: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error de conexión: ${e.toString()}')),
+      const SnackBar(
+        content: Text('Error de conexión. Revisa tu internet.'),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 }

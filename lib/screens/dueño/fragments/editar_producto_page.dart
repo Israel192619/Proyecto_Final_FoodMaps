@@ -203,8 +203,10 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
       if (bytes.length > maxImageBytes) {
         img.Image? original = img.decodeImage(bytes);
         if (original == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No se pudo procesar la imagen seleccionada.')),
+          _showCustomSnackBar(
+            'No se pudo procesar la imagen seleccionada.',
+            color: Colors.red.shade700,
+            icon: Icons.broken_image,
           );
           return;
         }
@@ -218,8 +220,10 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
           if (resultBytes.length <= maxImageBytes) break;
         }
         if (resultBytes != null && resultBytes.length <= maxImageBytes) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('La imagen fue redimensionada automáticamente para cumplir el límite de 2MB.')),
+          _showCustomSnackBar(
+            'La imagen fue redimensionada automáticamente para cumplir el límite de 2MB.',
+            color: Colors.blue.shade700,
+            icon: Icons.photo_size_select_large,
           );
           setState(() {
             _imageBytes = resultBytes;
@@ -228,8 +232,10 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
           });
           print('[VISTA][EDITAR_PRODUCTO] Imagen redimensionada (${resultBytes.length} bytes)');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No se pudo reducir la imagen por debajo de 2MB. Selecciona una imagen más pequeña.')),
+          _showCustomSnackBar(
+            'No se pudo reducir la imagen por debajo de 2MB. Selecciona una imagen más pequeña.',
+            color: Colors.red.shade700,
+            icon: Icons.warning_amber_rounded,
           );
         }
         return;
@@ -295,11 +301,33 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
     print('[VISTA][EDITAR_PRODUCTO] Imagen seleccionada limpiada');
   }
 
+  void _showCustomSnackBar(String message, {Color? color, IconData? icon, int durationMs = 3500}) {
+    final snackBar = SnackBar(
+      content: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(width: 12),
+          ],
+          Expanded(child: Text(message, style: const TextStyle(fontSize: 16))),
+        ],
+      ),
+      backgroundColor: color ?? Colors.red.shade700,
+      behavior: SnackBarBehavior.floating,
+      duration: Duration(milliseconds: durationMs),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 8,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
   Future<void> _guardarCambios() async {
     // Verificar que al menos un campo esté seleccionado para editar
     if (!_editarNombre && !_editarPrecio && !_editarDescripcion && !_editarDisponibilidad && !_editarImagen) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos un campo para editar')),
+      _showCustomSnackBar(
+        'Selecciona al menos un campo para editar',
+        color: Colors.red.shade700,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }
@@ -330,8 +358,10 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
 
     // Validación mínima local para evitar 422 obvios
     if (nombreToSend.isEmpty || precioToSendStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nombre y precio son obligatorios')),
+      _showCustomSnackBar(
+        'Nombre y precio son obligatorios',
+        color: Colors.red.shade700,
+        icon: Icons.warning_amber_rounded,
       );
       setState(() => _isSaving = false);
       return;
@@ -369,13 +399,21 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
         print('[VISTA][EDITAR_PRODUCTO] Respuesta $method producto: ${response.statusCode} - ${response.body}');
 
         if (response.statusCode == 200 || response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Producto actualizado correctamente')),
+          _showCustomSnackBar(
+            '¡Producto actualizado correctamente!',
+            color: Colors.green.shade600,
+            icon: Icons.check_circle_outline,
           );
           Navigator.pop(context, true);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al actualizar producto: ${response.body}')),
+          String userMessage = 'Error al actualizar producto.';
+          if (response.statusCode == 422) {
+            userMessage = 'Verifica los datos ingresados. La imagen debe pesar menos de 2MB.';
+          }
+          _showCustomSnackBar(
+            userMessage,
+            color: Colors.red.shade700,
+            icon: Icons.error_outline,
           );
         }
       } else {
@@ -405,20 +443,26 @@ class _EditarProductoPageState extends State<EditarProductoPage> {
         print('[VISTA][EDITAR_PRODUCTO] Respuesta PUT producto: ${response.statusCode} - ${response.body}');
 
         if (response.statusCode == 200 || response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Producto actualizado correctamente')),
+          _showCustomSnackBar(
+            '¡Producto actualizado correctamente!',
+            color: Colors.green.shade600,
+            icon: Icons.check_circle_outline,
           );
           Navigator.pop(context, true);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al actualizar producto: ${response.body}')),
+          _showCustomSnackBar(
+            'Error al actualizar producto.',
+            color: Colors.red.shade700,
+            icon: Icons.error_outline,
           );
         }
       }
     } catch (e) {
       print('[VISTA][EDITAR_PRODUCTO] Error al actualizar producto: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error de conexión al actualizar producto')),
+      _showCustomSnackBar(
+        'No se pudo conectar con el servidor. Intenta nuevamente.',
+        color: Colors.red.shade700,
+        icon: Icons.cloud_off,
       );
     }
 
