@@ -157,7 +157,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             await prefs.setBool('hasRestaurant', true);
             if (mounted) {
               print('[VISTA REGISTRO] [REDIR] Redirigiendo a /home');
-              Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
             }
             break;
           case 201: // Dueño sin restaurante
