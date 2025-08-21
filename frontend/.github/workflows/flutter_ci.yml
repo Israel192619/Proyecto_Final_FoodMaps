@@ -1,0 +1,26 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+      - name: Instalar dependencias
+        run: flutter pub get
+      - name: Ejecutar pruebas
+        run: flutter test --coverage
+      - name: Publicar cobertura
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
+
