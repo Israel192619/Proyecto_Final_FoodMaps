@@ -1,4 +1,13 @@
 # Proyecto Final FoodMaps
+---
+
+### Participantes en este proyecto
+- **Daniela Chipana Echave** (Tester)
+- **Antonio Eduardo Maida Amaya** (SCRUM master)
+- **Alejandro Fernando FLores Alvarado** (Frontend)
+- **Israel Zabala Cuevas** (Backend)
+
+---
 
 Este repositorio contiene el **backend** y **frontend** del proyecto.
 
